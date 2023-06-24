@@ -1,0 +1,54 @@
+{
+  "name": "town",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "library",
+  "sourceRoot": "packages/town/src",
+  "targets": {
+    "build": {
+      "executor": "@monodon/rust:wasm-pack",
+      "outputs": ["{options.target-dir}"],
+      "options": {
+        "target-dir": "dist/target/wasm/town",
+        "release": false,
+        "target": "bundler"
+      },
+      "configurations": {
+        "production": {
+          "release": true
+        }
+      }
+    },
+    "test": {
+      "executor": "@monodon/rust:test",
+      "outputs": ["{options.target-dir}"],
+      "options": {
+        "target-dir": "dist/target/town"
+      },
+      "configurations": {
+        "production": {
+          "release": true
+        }
+      }
+    },
+    "lint": {
+      "executor": "@monodon/rust:lint",
+      "outputs": ["{options.target-dir}"],
+      "options": {
+        "target-dir": "dist/target/town"
+      }
+    },
+    "run": {
+      "executor": "@monodon/rust:run",
+      "outputs": ["{options.target-dir}"],
+      "options": {
+        "target-dir": "dist/target/town"
+      },
+      "configurations": {
+        "production": {
+          "release": true
+        }
+      }
+    }
+  },
+  "tags": []
+}

@@ -1,0 +1,8 @@
+
+[workspace]
+members = [
+	'packages/town',
+]
+
+[profile.release]
+lto = true
