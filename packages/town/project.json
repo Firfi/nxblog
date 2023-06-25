@@ -5,7 +5,7 @@
   "sourceRoot": "packages/town/src",
   "targets": {
     "build": {
-      "executor": "@monodon/rust:wasm-pack",
+      "executor": "@nxblog/rust:wasm-pack",
       "outputs": ["{options.target-dir}"],
       "options": {
         "target-dir": "dist/target/wasm/town",

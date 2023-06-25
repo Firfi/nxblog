@@ -1,3 +1,9 @@
+TODO probably just use https://github.com/JulianCataldo/astro-nannou-starter
+
+TODO until this https://github.com/Cammisuli/monodon/pull/22 is resolved, I check out my fork and use it as dependency or as an alternative symlink it into packages: `ln -s ~/work/blog/monodon/packages/rust`
+
+TODO topLevelAwait() plugin just crashes build without no useful error indication
+
 # Nxblog
 
 <a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>

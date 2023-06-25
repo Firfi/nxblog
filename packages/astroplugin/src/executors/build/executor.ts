@@ -88,6 +88,7 @@ function runCliBuild(
   options: BuildExecutorOptions
 ) {
   return new Promise((resolve, reject) => {
+    console.log('getAstroBuildArgs(projectRoot, options)', getAstroBuildArgs(projectRoot, options))
     // TODO: use Astro CLI API once it's available.
     // See https://github.com/snowpackjs/astro/issues/1483.
     childProcess = fork(

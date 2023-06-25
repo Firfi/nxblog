@@ -17,7 +17,9 @@
     "baseUrl": ".",
     "paths": {
       "@nxblog/astroplugin": ["packages/astroplugin/src/index.ts"],
-      "@nxblog/rustoplugin": ["packages/rustoplugin/src/index.ts"]
+      "@nxblog/rust": ["packages/rust/src/index.ts"],
+      "@nxblog/rustoplugin": ["packages/rustoplugin/src/index.ts"],
+      "@nxblog/town/*": ["packages/town/*"],
     }
   },
   "exclude": ["node_modules", "tmp"]
