@@ -13,6 +13,20 @@ web-sys = { version = '0.3', features = [
 console_error_panic_hook = { version = '0.1.6', optional = true }
 wee_alloc = { version = '0.4', optional = true }
 
+[dependencies.bevy]
+version = "0.10.1"
+default-features = false
+features = [
+  "bevy_asset",
+  "bevy_winit",
+  "bevy_text",
+  "bevy_ui",
+  "bevy_render",
+  "bevy_sprite",
+  "bevy_core_pipeline"
+]
+
+
 [lib]
 crate-type = [
 	'cdylib',
@@ -27,5 +41,4 @@ default = [
 [dev-dependencies]
 wasm-bindgen-test = '0.3'
 
-[profile.release]
-opt-level = 's' #Tell `rustc` to optimize for small code size.
+
