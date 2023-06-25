@@ -9,7 +9,7 @@ export default defineConfig({
   integrations: [react()],
   vite: {
     plugins: [
-      wasm(), topLevelAwait()
+      wasm()//, topLevelAwait()
     ]
   }
   // root: '../../dist/packages/astroblog'
