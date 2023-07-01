@@ -1,4 +1,7 @@
 use wasm_bindgen::prelude::*;
+use bevy_ecs_ldtk::prelude::*;
+
+use bevy::{prelude::*, winit::WinitSettings};
 
 #[cfg(feature = "wee_alloc")]
 #[global_allocator]
@@ -17,19 +20,21 @@ extern "C" {
 
 #[wasm_bindgen]
 pub fn greet() {
-
   alert("Hello, wasm-game-of-life!");
   main();
 }
 
-use bevy::{prelude::*, winit::WinitSettings};
-
 fn main() {
   App::new()
     .add_plugins(DefaultPlugins)
+    .add_plugin(LdtkPlugin)
     .insert_resource(WinitSettings::game())
     .add_startup_system(setup)
-    .add_system(button_system)
+    .add_startup_system(setup_ldtk)
+    // .add_startup_system(button_setup)
+    // .add_system(button_interaction_system)
+    .insert_resource(LevelSelection::Index(0))
+    .register_ldtk_entity::<MyBundle>("MyEntityIdentifier")
     .run();
 }
 
@@ -37,7 +42,7 @@ const NORMAL_BUTTON: Color = Color::rgb(0.15, 0.15, 0.15);
 const HOVERED_BUTTON: Color = Color::rgb(0.25, 0.25, 0.25);
 const PRESSED_BUTTON: Color = Color::rgb(0.35, 0.75, 0.35);
 
-fn button_system(
+fn button_interaction_system(
   mut interaction_query: Query<
     (
       &Interaction,
@@ -68,9 +73,7 @@ fn button_system(
   }
 }
 
-fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
-  // ui camera
-  commands.spawn(Camera2dBundle::default());
+fn button_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
   commands
     .spawn(NodeBundle {
       style: Style {
@@ -116,4 +119,31 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     });
 }
 
+fn setup(mut commands: Commands) {
+  // ui camera
+  commands.spawn(Camera2dBundle::default());
+
+}
+
+fn setup_ldtk(mut commands: Commands, asset_server: Res<AssetServer>) {
+  commands.spawn(LdtkWorldBundle {
+    ldtk_handle: asset_server.load("my_project.ldtk"),
+    ..Default::default()
+  });
+}
+
+#[derive(Default, Component)]
+struct ComponentA;
+
+#[derive(Default, Component)]
+struct ComponentB;
+
+#[derive(Bundle, LdtkEntity)]
+pub struct MyBundle {
+  a: ComponentA,
+  b: ComponentB,
+  #[sprite_sheet_bundle]
+  #[bundle]
+  sprite_bundle: SpriteSheetBundle,
+}
 
