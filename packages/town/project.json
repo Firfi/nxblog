@@ -37,8 +37,8 @@
         "target-dir": "dist/target/town"
       }
     },
-    "run": {
-      "executor": "@monodon/rust:run",
+    "dev": {
+      "executor": "@nxblog/rust:run",
       "outputs": ["{options.target-dir}"],
       "options": {
         "target-dir": "dist/target/town"

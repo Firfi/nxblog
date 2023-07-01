@@ -28,10 +28,12 @@ features = [
 
 
 [lib]
-crate-type = [
-	'cdylib',
-	'rlib',
-]
+crate-type = ["cdylib", "rlib"]
+path = "src/main.rs"
+
+[[bin]]
+name = "devbin"
+path = "src/main.rs"
 
 [feature]
 default = [
