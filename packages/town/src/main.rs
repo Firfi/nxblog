@@ -1,10 +1,13 @@
 mod building_entrance_ref;
+mod level_height;
 
 use wasm_bindgen::prelude::*;
 use bevy_ecs_ldtk::prelude::*;
 use building_entrance_ref::*;
 
 use bevy::{prelude::*, winit::WinitSettings};
+use bevy::log::Level;
+use crate::level_height::{LevelHeight, set_level_height_to_current_level};
 
 #[cfg(feature = "wee_alloc")]
 #[global_allocator]
@@ -35,33 +38,66 @@ fn main() {
     .add_startup_system(setup)
     .add_startup_system(setup_ldtk)
     .add_system(resolve_building_entrance_references)
+    .add_system(update_cursor_pos)
+    .add_system(set_level_height_to_current_level)
     // .add_startup_system(button_setup)
     // .add_system(button_interaction_system)
     .insert_resource(LevelSelection::Index(0))
+    .init_resource::<CursorPos>()
+    .init_resource::<LevelHeight>()
     .register_ldtk_entity::<BuildingAreaBundle>("BuildingArea")
     .register_ldtk_entity::<BuildingEntranceBundle>("BuildingEntrance")
     .add_system(ls)
-    .add_system(ls2)
+    // not needed; for egui inspector
     .register_type::<UrlPath>()
     .register_type::<BuildingEntranceRef>()
     .run();
 }
 
-fn ls (q: Query<&BuildingEntranceRef>) {
+fn ls (q: Query<(&BuildingAreaPositional, &GlobalTransform, &Transform)>, cp: Res<CursorPos>) {
   for e in q.iter() {
-    println!("path.. {:?}", e);
+    println!("positional.. {:?}", e);
+    println!("cursor pos.. {:?}", cp.0);
+    let gpxx_min = e.0.px.x;
+    let gpxx_max = gpxx_min + e.0.width;
+    let gpxy_min = e.0.px.y;
+    let gpxy_max = gpxy_min + e.0.height;
+    let inside = cp.0.x > gpxx_min as f32 && cp.0.x < gpxx_max as f32
+      && cp.0.y > gpxy_min as f32 && cp.0.y < gpxy_max as f32;
+    println!("INSIDE: {}", inside)
   }
 }
 
-fn ls2 (q: Query<&UrlPath>) {
-  for e in q.iter() {
-    println!("path.. {}", e.0);
+#[derive(Resource, Deref, DerefMut)]
+pub struct CursorPos(pub Vec2);
+impl Default for CursorPos {
+  fn default() -> Self {
+    // Initialize the cursor pos at some far away place. It will get updated
+    // correctly when the cursor moves.
+    Self(Vec2::new(-1000.0, -1000.0))
   }
 }
 
-const NORMAL_BUTTON: Color = Color::rgb(0.15, 0.15, 0.15);
-const HOVERED_BUTTON: Color = Color::rgb(0.25, 0.25, 0.25);
-const PRESSED_BUTTON: Color = Color::rgb(0.35, 0.75, 0.35);
+pub fn update_cursor_pos(
+  camera_q: Query<(&GlobalTransform, &Camera)>,
+  mut cursor_moved_events: EventReader<CursorMoved>,
+  mut cursor_pos: ResMut<CursorPos>,
+  level_height: Res<LevelHeight>
+) {
+  for cursor_moved in cursor_moved_events.iter() {
+    for (cam_t, cam) in camera_q.iter() {
+      if let Some(pos) = cam.viewport_to_world_2d(cam_t, cursor_moved.position) {
+        **cursor_pos = Vec2::new(pos.x, (*level_height).0 as f32 - pos.y);
+      }
+    }
+  }
+}
+
+// fn ls2 (q: Query<&UrlPath>) {
+//   for e in q.iter() {
+//     println!("path.. {}", e.0);
+//   }
+// }
 
 
 
@@ -72,19 +108,38 @@ fn setup(mut commands: Commands) {
 }
 
 fn setup_ldtk(mut commands: Commands, asset_server: Res<AssetServer>) {
-  commands.spawn(LdtkWorldBundle {
+  let bundle = LdtkWorldBundle {
     ldtk_handle: asset_server.load("ldtk/town.ldtk"),
     ..Default::default()
-  });
+  };
+  commands.spawn(bundle);
 }
 
-#[derive(Default, Component)]
-pub struct BuildingArea;
+#[derive(Debug, Default, Component)]
+pub struct BuildingAreaPositional {
+  pub px: IVec2,
+  pub width: i32,
+  pub height: i32,
+}
+
+impl BuildingAreaPositional {
+  pub fn from_building_area_field(entity_instance: &EntityInstance) -> BuildingAreaPositional {
+    return BuildingAreaPositional {
+      px: entity_instance.px,
+      width: entity_instance.width,
+      height: entity_instance.height,
+    }
+  }
+}
 
 #[derive(Bundle, LdtkEntity)]
 pub struct BuildingAreaBundle {
   #[with(UnresolvedBuildingEntranceRef::from_building_entrance_field)]
   unresolved_building_entrance: UnresolvedBuildingEntranceRef,
+  #[with(BuildingAreaPositional::from_building_area_field)]
+  positional: BuildingAreaPositional,
+  #[grid_coords]
+  grid_coords: GridCoords,
   // #[sprite_sheet_bundle]
   // #[bundle]
   // sprite_bundle: SpriteSheetBundle,
@@ -109,6 +164,10 @@ pub struct BuildingEntranceBundle {
   #[with(UrlPath::from_field)]
   path: UrlPath,
 }
+
+const NORMAL_BUTTON: Color = Color::rgb(0.15, 0.15, 0.15);
+const HOVERED_BUTTON: Color = Color::rgb(0.25, 0.25, 0.25);
+const PRESSED_BUTTON: Color = Color::rgb(0.35, 0.75, 0.35);
 
 fn button_interaction_system(
   mut interaction_query: Query<
