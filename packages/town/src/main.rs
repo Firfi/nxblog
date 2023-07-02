@@ -1,5 +1,8 @@
+mod building_entrance_ref;
+
 use wasm_bindgen::prelude::*;
 use bevy_ecs_ldtk::prelude::*;
+use building_entrance_ref::*;
 
 use bevy::{prelude::*, winit::WinitSettings};
 
@@ -31,16 +34,81 @@ fn main() {
     .insert_resource(WinitSettings::game())
     .add_startup_system(setup)
     .add_startup_system(setup_ldtk)
+    .add_system(resolve_building_entrance_references)
     // .add_startup_system(button_setup)
     // .add_system(button_interaction_system)
     .insert_resource(LevelSelection::Index(0))
-    .register_ldtk_entity::<MyBundle>("MyEntityIdentifier")
+    .register_ldtk_entity::<BuildingAreaBundle>("BuildingArea")
+    .register_ldtk_entity::<BuildingEntranceBundle>("BuildingEntrance")
+    .add_system(ls)
+    .add_system(ls2)
+    .register_type::<UrlPath>()
+    .register_type::<BuildingEntranceRef>()
     .run();
+}
+
+fn ls (q: Query<&BuildingEntranceRef>) {
+  for e in q.iter() {
+    println!("path.. {:?}", e);
+  }
+}
+
+fn ls2 (q: Query<&UrlPath>) {
+  for e in q.iter() {
+    println!("path.. {}", e.0);
+  }
 }
 
 const NORMAL_BUTTON: Color = Color::rgb(0.15, 0.15, 0.15);
 const HOVERED_BUTTON: Color = Color::rgb(0.25, 0.25, 0.25);
 const PRESSED_BUTTON: Color = Color::rgb(0.35, 0.75, 0.35);
+
+
+
+fn setup(mut commands: Commands) {
+  // ui camera
+  commands.spawn(Camera2dBundle::default());
+
+}
+
+fn setup_ldtk(mut commands: Commands, asset_server: Res<AssetServer>) {
+  commands.spawn(LdtkWorldBundle {
+    ldtk_handle: asset_server.load("ldtk/town.ldtk"),
+    ..Default::default()
+  });
+}
+
+#[derive(Default, Component)]
+pub struct BuildingArea;
+
+#[derive(Bundle, LdtkEntity)]
+pub struct BuildingAreaBundle {
+  #[with(UnresolvedBuildingEntranceRef::from_building_entrance_field)]
+  unresolved_building_entrance: UnresolvedBuildingEntranceRef,
+  // #[sprite_sheet_bundle]
+  // #[bundle]
+  // sprite_bundle: SpriteSheetBundle,
+}
+
+#[derive(Debug, Default, Component, Reflect)]
+pub struct UrlPath(String);
+
+impl UrlPath {
+  pub fn from_field(entity_instance: &EntityInstance) -> UrlPath {
+    UrlPath(
+      entity_instance
+        .get_string_field("path")
+        .expect("expected entity to have non-nullable path str field").to_string(),
+    )
+  }
+}
+
+
+#[derive(Bundle, LdtkEntity)]
+pub struct BuildingEntranceBundle {
+  #[with(UrlPath::from_field)]
+  path: UrlPath,
+}
 
 fn button_interaction_system(
   mut interaction_query: Query<
@@ -118,32 +186,3 @@ fn button_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         });
     });
 }
-
-fn setup(mut commands: Commands) {
-  // ui camera
-  commands.spawn(Camera2dBundle::default());
-
-}
-
-fn setup_ldtk(mut commands: Commands, asset_server: Res<AssetServer>) {
-  commands.spawn(LdtkWorldBundle {
-    ldtk_handle: asset_server.load("my_project.ldtk"),
-    ..Default::default()
-  });
-}
-
-#[derive(Default, Component)]
-struct ComponentA;
-
-#[derive(Default, Component)]
-struct ComponentB;
-
-#[derive(Bundle, LdtkEntity)]
-pub struct MyBundle {
-  a: ComponentA,
-  b: ComponentB,
-  #[sprite_sheet_bundle]
-  #[bundle]
-  sprite_bundle: SpriteSheetBundle,
-}
-

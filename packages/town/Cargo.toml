@@ -12,7 +12,7 @@ web-sys = { version = '0.3', features = [
 ] }
 console_error_panic_hook = { version = '0.1.6', optional = true }
 wee_alloc = { version = '0.4', optional = true }
-bevy_ecs_ldtk = "0.7.0"
+bevy_ecs_ldtk = { git = "https://github.com/Trouv/bevy_ecs_ldtk.git", rev = "d99f1ae7eec28114d9277e5c5063418234fcc261" }
 
 [dependencies.bevy]
 version = "0.10.1"
