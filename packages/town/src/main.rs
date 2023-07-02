@@ -54,17 +54,20 @@ fn main() {
     .run();
 }
 
-fn ls (q: Query<(&BuildingAreaPositional, &GlobalTransform, &Transform)>, cp: Res<CursorPos>) {
-  for e in q.iter() {
-    println!("positional.. {:?}", e);
-    println!("cursor pos.. {:?}", cp.0);
+fn ls (transforms_query: Query<(&LevelPositional, &BuildingEntranceRef)>,
+  cursor_position_res: Res<CursorPos>,
+  entrance_positional_query: Query<(&GridCoords, &BuildingEntrance)>
+) {
+  for entrance in transforms_query.iter().filter(|e| {
     let gpxx_min = e.0.px.x;
     let gpxx_max = gpxx_min + e.0.width;
     let gpxy_min = e.0.px.y;
     let gpxy_max = gpxy_min + e.0.height;
-    let inside = cp.0.x > gpxx_min as f32 && cp.0.x < gpxx_max as f32
-      && cp.0.y > gpxy_min as f32 && cp.0.y < gpxy_max as f32;
-    println!("INSIDE: {}", inside)
+    cursor_position_res.0.x > gpxx_min as f32 && cursor_position_res.0.x < gpxx_max as f32
+      && cursor_position_res.0.y > gpxy_min as f32 && cursor_position_res.0.y < gpxy_max as f32
+  }).map(|e| e.1) {
+    let entrance = entrance_positional_query.get(entrance.0).expect("Entrance is required at this point");
+    println!("tile to pathfind: {:?}", entrance.0);
   }
 }
 
@@ -116,15 +119,15 @@ fn setup_ldtk(mut commands: Commands, asset_server: Res<AssetServer>) {
 }
 
 #[derive(Debug, Default, Component)]
-pub struct BuildingAreaPositional {
+pub struct LevelPositional {
   pub px: IVec2,
   pub width: i32,
   pub height: i32,
 }
 
-impl BuildingAreaPositional {
-  pub fn from_building_area_field(entity_instance: &EntityInstance) -> BuildingAreaPositional {
-    return BuildingAreaPositional {
+impl LevelPositional {
+  pub fn from_entity_field(entity_instance: &EntityInstance) -> LevelPositional {
+    return LevelPositional {
       px: entity_instance.px,
       width: entity_instance.width,
       height: entity_instance.height,
@@ -132,14 +135,18 @@ impl BuildingAreaPositional {
   }
 }
 
+#[derive(Debug, Default, Component)]
+pub struct BuildingArea;
+
 #[derive(Bundle, LdtkEntity)]
 pub struct BuildingAreaBundle {
   #[with(UnresolvedBuildingEntranceRef::from_building_entrance_field)]
   unresolved_building_entrance: UnresolvedBuildingEntranceRef,
-  #[with(BuildingAreaPositional::from_building_area_field)]
-  positional: BuildingAreaPositional,
+  #[with(LevelPositional::from_entity_field)]
+  positional: LevelPositional,
   #[grid_coords]
   grid_coords: GridCoords,
+  building_area: BuildingArea,
   // #[sprite_sheet_bundle]
   // #[bundle]
   // sprite_bundle: SpriteSheetBundle,
@@ -158,11 +165,18 @@ impl UrlPath {
   }
 }
 
+#[derive(Debug, Default, Component)]
+pub struct BuildingEntrance;
 
 #[derive(Bundle, LdtkEntity)]
 pub struct BuildingEntranceBundle {
   #[with(UrlPath::from_field)]
   path: UrlPath,
+  #[with(LevelPositional::from_entity_field)]
+  positional: LevelPositional,
+  #[grid_coords]
+  grid_coords: GridCoords,
+  building_entrance: BuildingEntrance,
 }
 
 const NORMAL_BUTTON: Color = Color::rgb(0.15, 0.15, 0.15);

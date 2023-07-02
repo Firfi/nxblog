@@ -24,7 +24,7 @@ impl UnresolvedBuildingEntranceRef {
 
 /// Component defining a relation - the "building_entrance" of this entity.
 #[derive(Debug, Deref, DerefMut, Component, Reflect)]
-pub struct BuildingEntranceRef(Entity);
+pub struct BuildingEntranceRef(pub Entity);
 
 pub fn resolve_building_entrance_references(
   mut commands: Commands,
