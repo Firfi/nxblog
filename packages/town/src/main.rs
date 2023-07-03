@@ -1,17 +1,23 @@
 mod building_entrance_ref;
-mod level_height;
+mod level_measurements;
+mod level_positional;
+mod starting_point;
+mod player;
+mod collisions;
+mod level;
 
 use wasm_bindgen::prelude::*;
 use bevy_ecs_ldtk::prelude::*;
 use building_entrance_ref::*;
+use level_positional::*;
+use starting_point::*;
 
 use bevy::{prelude::*, winit::WinitSettings};
 use bevy::log::Level;
-use crate::level_height::{LevelHeight, set_level_height_to_current_level};
-
-#[cfg(feature = "wee_alloc")]
-#[global_allocator]
-static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
+use bevy_ecs_ldtk::utils::translation_to_ldtk_pixel_coords;
+use crate::collisions::{LevelCollisions, set_collisions_to_current_level, CollisionsInitialized, draw_debug_collisions};
+use crate::level_measurements::{LevelMeasurements, set_level_measurements_to_current_level};
+use crate::player::{confine_player_movement, player_movement, respawn_player_system};
 
 #[wasm_bindgen]
 extern {
@@ -37,20 +43,30 @@ fn main() {
     .insert_resource(WinitSettings::game())
     .add_startup_system(setup)
     .add_startup_system(setup_ldtk)
+    .add_system(starting_point_system)
     .add_system(resolve_building_entrance_references)
     .add_system(update_cursor_pos)
-    .add_system(set_level_height_to_current_level)
+    .add_system(set_level_measurements_to_current_level)
     // .add_startup_system(button_setup)
     // .add_system(button_interaction_system)
     .insert_resource(LevelSelection::Index(0))
     .init_resource::<CursorPos>()
-    .init_resource::<LevelHeight>()
+    .init_resource::<LevelMeasurements>()
+    .init_resource::<LevelCollisions>()
     .register_ldtk_entity::<BuildingAreaBundle>("BuildingArea")
     .register_ldtk_entity::<BuildingEntranceBundle>("BuildingEntrance")
+    .register_ldtk_entity::<StartingPointBundle>("StartingPoint")
     .add_system(ls)
+    .add_system(respawn_player_system.after(set_level_measurements_to_current_level))
+    .add_system(player_movement)
+    .add_system(confine_player_movement.after(player_movement).after(set_collisions_to_current_level))
+    .add_system(set_collisions_to_current_level)
+    .add_system(draw_debug_collisions)
     // not needed; for egui inspector
     .register_type::<UrlPath>()
     .register_type::<BuildingEntranceRef>()
+    .add_event::<StartingPointInitialized>()
+    .add_event::<CollisionsInitialized>()
     .run();
 }
 
@@ -63,8 +79,8 @@ fn ls (transforms_query: Query<(&LevelPositional, &BuildingEntranceRef)>,
     let gpxx_max = gpxx_min + e.0.width;
     let gpxy_min = e.0.px.y;
     let gpxy_max = gpxy_min + e.0.height;
-    cursor_position_res.0.x > gpxx_min as f32 && cursor_position_res.0.x < gpxx_max as f32
-      && cursor_position_res.0.y > gpxy_min as f32 && cursor_position_res.0.y < gpxy_max as f32
+    cursor_position_res.0.x > gpxx_min && cursor_position_res.0.x < gpxx_max
+      && cursor_position_res.0.y > gpxy_min && cursor_position_res.0.y < gpxy_max
   }).map(|e| e.1) {
     let entrance = entrance_positional_query.get(entrance.0).expect("Entrance is required at this point");
     println!("tile to pathfind: {:?}", entrance.0);
@@ -72,12 +88,12 @@ fn ls (transforms_query: Query<(&LevelPositional, &BuildingEntranceRef)>,
 }
 
 #[derive(Resource, Deref, DerefMut)]
-pub struct CursorPos(pub Vec2);
+pub struct CursorPos(pub IVec2);
 impl Default for CursorPos {
   fn default() -> Self {
     // Initialize the cursor pos at some far away place. It will get updated
     // correctly when the cursor moves.
-    Self(Vec2::new(-1000.0, -1000.0))
+    Self(IVec2::new(-1000, -1000))
   }
 }
 
@@ -85,12 +101,12 @@ pub fn update_cursor_pos(
   camera_q: Query<(&GlobalTransform, &Camera)>,
   mut cursor_moved_events: EventReader<CursorMoved>,
   mut cursor_pos: ResMut<CursorPos>,
-  level_height: Res<LevelHeight>
+  level_measurements: Res<LevelMeasurements>
 ) {
   for cursor_moved in cursor_moved_events.iter() {
     for (cam_t, cam) in camera_q.iter() {
       if let Some(pos) = cam.viewport_to_world_2d(cam_t, cursor_moved.position) {
-        **cursor_pos = Vec2::new(pos.x, (*level_height).0 as f32 - pos.y);
+        **cursor_pos = translation_to_ldtk_pixel_coords(pos, level_measurements.px_hei as i32);
       }
     }
   }
@@ -119,23 +135,6 @@ fn setup_ldtk(mut commands: Commands, asset_server: Res<AssetServer>) {
 }
 
 #[derive(Debug, Default, Component)]
-pub struct LevelPositional {
-  pub px: IVec2,
-  pub width: i32,
-  pub height: i32,
-}
-
-impl LevelPositional {
-  pub fn from_entity_field(entity_instance: &EntityInstance) -> LevelPositional {
-    return LevelPositional {
-      px: entity_instance.px,
-      width: entity_instance.width,
-      height: entity_instance.height,
-    }
-  }
-}
-
-#[derive(Debug, Default, Component)]
 pub struct BuildingArea;
 
 #[derive(Bundle, LdtkEntity)]
@@ -151,6 +150,8 @@ pub struct BuildingAreaBundle {
   // #[bundle]
   // sprite_bundle: SpriteSheetBundle,
 }
+
+
 
 #[derive(Debug, Default, Component, Reflect)]
 pub struct UrlPath(String);
@@ -177,85 +178,4 @@ pub struct BuildingEntranceBundle {
   #[grid_coords]
   grid_coords: GridCoords,
   building_entrance: BuildingEntrance,
-}
-
-const NORMAL_BUTTON: Color = Color::rgb(0.15, 0.15, 0.15);
-const HOVERED_BUTTON: Color = Color::rgb(0.25, 0.25, 0.25);
-const PRESSED_BUTTON: Color = Color::rgb(0.35, 0.75, 0.35);
-
-fn button_interaction_system(
-  mut interaction_query: Query<
-    (
-      &Interaction,
-      &mut BackgroundColor,
-      &Children,
-    ),
-    (Changed<Interaction>, With<Button>),
-  >,
-  mut text_query: Query<&mut Text>,
-) {
-  for (interaction, mut color, children) in &mut interaction_query {
-    let mut text = text_query.get_mut(children[0]).unwrap();
-    match *interaction {
-      Interaction::Clicked => {
-        text.sections[0].value = "Press".to_string();
-        *color = PRESSED_BUTTON.into();
-        go_town("test");
-      }
-      Interaction::Hovered => {
-        text.sections[0].value = "Hover".to_string();
-        *color = HOVERED_BUTTON.into();
-      }
-      Interaction::None => {
-        text.sections[0].value = "Button".to_string();
-        *color = NORMAL_BUTTON.into();
-      }
-    }
-  }
-}
-
-fn button_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
-  commands
-    .spawn(NodeBundle {
-      style: Style {
-        size: Size {
-          width: Val::Percent(100.0),
-          height: Default::default(),
-        },
-        align_items: AlignItems::Center,
-        justify_content: JustifyContent::Center,
-        ..default()
-      },
-      ..default()
-    })
-    .with_children(|parent| {
-      parent
-        .spawn(ButtonBundle {
-          style: Style {
-            size: Size {
-              width: Val::Px(150.0),
-              height: Val::Px(65.0),
-            },
-
-            border: UiRect::all(Val::Px(5.0)),
-            // horizontally center child text
-            justify_content: JustifyContent::Center,
-            // vertically center child text
-            align_items: AlignItems::Center,
-            ..default()
-          },
-          background_color: NORMAL_BUTTON.into(),
-          ..default()
-        })
-        .with_children(|parent| {
-          parent.spawn(TextBundle::from_section(
-            "Button",
-            TextStyle {
-              font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-              font_size: 40.0,
-              color: Color::rgb(0.9, 0.9, 0.9),
-            },
-          ));
-        });
-    });
 }
