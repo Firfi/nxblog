@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashSet};
 use bevy::prelude::*;
 use bevy_ecs_ldtk::prelude::*;
 use bevy_ecs_ldtk::utils::{grid_coords_to_ldtk_grid_coords, int_grid_index_to_grid_coords, ldtk_grid_coords_to_grid_coords};
@@ -29,8 +29,8 @@ fn test_int_1d_to_2d() {
   assert_eq!(int_cell_1d_to_2d_index(8, 3), (2, 2));
 }
 
-fn get_neighbour_indices(index: usize, width_in_cells: usize, height_in_cells: usize) -> HashSet<usize> {
-  let mut neighbours = HashSet::with_capacity(4);
+fn get_neighbour_indices(index: usize, width_in_cells: usize, height_in_cells: usize) -> BTreeSet<usize> {
+  let mut neighbours = BTreeSet::new();
   let width = width_in_cells;
   let height = height_in_cells;
   match int_cell_1d_to_2d_index(index, width_in_cells) {
@@ -54,15 +54,15 @@ fn get_neighbour_indices(index: usize, width_in_cells: usize, height_in_cells: u
 
 #[test]
 fn test_get_neighbour_indices() {
-  assert_eq!(get_neighbour_indices(0, 3, 3), HashSet::from([1, 3]));
-  assert_eq!(get_neighbour_indices(1, 3, 3), HashSet::from([0, 2, 4]));
-  assert_eq!(get_neighbour_indices(2, 3, 3), HashSet::from([1, 5]));
-  assert_eq!(get_neighbour_indices(3, 3, 3), HashSet::from([0, 4, 6]));
-  assert_eq!(get_neighbour_indices(4, 3, 3), HashSet::from([1, 3, 5, 7]));
-  assert_eq!(get_neighbour_indices(5, 3, 3), HashSet::from([2, 4, 8]));
-  assert_eq!(get_neighbour_indices(6, 3, 3), HashSet::from([3, 7]));
-  assert_eq!(get_neighbour_indices(7, 3, 3), HashSet::from([4, 6, 8]));
-  assert_eq!(get_neighbour_indices(8, 3, 3), HashSet::from([5, 7]));
+  assert_eq!(get_neighbour_indices(0, 3, 3), BTreeSet::from([1, 3]));
+  assert_eq!(get_neighbour_indices(1, 3, 3), BTreeSet::from([0, 2, 4]));
+  assert_eq!(get_neighbour_indices(2, 3, 3), BTreeSet::from([1, 5]));
+  assert_eq!(get_neighbour_indices(3, 3, 3), BTreeSet::from([0, 4, 6]));
+  assert_eq!(get_neighbour_indices(4, 3, 3), BTreeSet::from([1, 3, 5, 7]));
+  assert_eq!(get_neighbour_indices(5, 3, 3), BTreeSet::from([2, 4, 8]));
+  assert_eq!(get_neighbour_indices(6, 3, 3), BTreeSet::from([3, 7]));
+  assert_eq!(get_neighbour_indices(7, 3, 3), BTreeSet::from([4, 6, 8]));
+  assert_eq!(get_neighbour_indices(8, 3, 3), BTreeSet::from([5, 7]));
 }
 
 
@@ -166,8 +166,7 @@ fn test_pathfind() {
   let width: u32 = 3;
   let height: u32 = 3;
   let collisions = HashSet::new();
-  // non-deterministic https://github.com/samueltardieu/pathfinding/issues/246 so we test only the goal
-  assert_eq!(pathfind(&0, &8, &collisions, &width, &height).map(|path| *path.0.last().unwrap()), Some(8));
+  assert_eq!(pathfind(&0, &8, &collisions, &width, &height), Some((vec![0, 1, 2, 5, 8], 4)));
   // now with some collisions on the way
   let mut collisions = HashSet::new();
   collisions.insert(CollisionIndex(3));
