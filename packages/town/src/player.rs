@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use bevy_ecs_ldtk::prelude::*;
 use bevy_ecs_ldtk::utils::{grid_coords_to_translation, int_grid_index_to_grid_coords, ldtk_pixel_coords_to_grid_coords, translation_to_grid_coords};
-use crate::collisions::{CollisionIndex, LevelCollisions};
+use crate::collisions::{CollisionIndex, LevelCollisionsSet};
 use crate::level_measurements::LevelMeasurements;
 use crate::starting_point::{StartingPoint, StartingPointInitialized};
 
@@ -82,7 +82,7 @@ pub fn translation_from_collision_int(level_measurements: &Res<LevelMeasurements
 pub fn confine_player_movement(
   mut player_query: Query<(&mut Transform, &mut GridCoords), With<Player>>,
   level_measurements: Res<LevelMeasurements>,
-  level_collisions: Res<LevelCollisions>,
+  level_collisions: Res<LevelCollisionsSet>,
 ) {
   let player_size = level_measurements.c_wid; // assume = cell height
   for (mut transform, mut grid_coords) in player_query.iter_mut() {
@@ -122,7 +122,6 @@ pub fn confine_player_movement(
 
       // squares intersect // TODO what when > 1 collision? - take largest intersection, only consider it
       if player_x_min < collision_x_max && player_x_max > collision_x_min && player_y_min < collision_y_max && player_y_max > collision_y_min {
-        println!("collision {:?}", collision);
         // calculate diff of how deep the player is in and roll back exactly that much
         // i.e. player got from the top = roll exactly the top diff, etc.
         let mut x_diff = 0.0;

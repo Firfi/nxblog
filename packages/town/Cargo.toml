@@ -13,6 +13,7 @@ web-sys = { version = '0.3', features = [
 console_error_panic_hook = { version = '0.1.6', optional = true }
 bevy_ecs_ldtk = { git = "https://github.com/Trouv/bevy_ecs_ldtk.git", rev = "d99f1ae7eec28114d9277e5c5063418234fcc261" }
 itertools = "0.11.0"
+pathfinding = "4.3.0"
 
 [dependencies.bevy]
 version = "0.10.1"
@@ -29,9 +30,9 @@ features = [
 ]
 
 
-[lib]
-crate-type = ["cdylib", "rlib"]
-path = "src/main.rs"
+#[lib]
+#crate-type = ["cdylib", "rlib"]
+#path = "src/main.rs"
 
 [[bin]]
 name = "devbin"

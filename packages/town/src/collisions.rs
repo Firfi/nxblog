@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use bevy::prelude::*;
 use bevy_ecs_ldtk::prelude::*;
 use itertools::*;
@@ -8,21 +9,21 @@ use crate::player::translation_from_collision_int;
 #[derive(Debug, Default, Resource, Deref, DerefMut, Clone, PartialEq, Eq, Hash)]
 pub struct CollisionIndex(pub usize);
 
-#[derive(Debug, Default, Resource, Deref, DerefMut, Clone, PartialEq, Eq, Hash)]
-pub struct LevelCollisions(pub Vec<CollisionIndex>);
+#[derive(Debug, Default, Resource, Deref, DerefMut, Clone, PartialEq, Eq)]
+pub struct LevelCollisionsSet(pub HashSet<CollisionIndex>);
 
 pub struct CollisionsInitialized;
 
 pub fn set_collisions_to_current_level(
   mut level_events: EventReader<LevelEvent>,
   level_handles: Query<&Handle<LdtkLevel>>,
-  mut current_level_collisions: ResMut<LevelCollisions>,
+  mut current_level_collisions_set: ResMut<LevelCollisionsSet>,
   level_assets: Res<Assets<LdtkLevel>>,
   mut event_writer: EventWriter<CollisionsInitialized>,
 ) {
-  let current_level_collisions_ref = &mut *current_level_collisions;
+  let current_level_collisions_ref = &mut *current_level_collisions_set;
   with_level_asset(&level_handles, &level_assets, &mut level_events, |asset| {
-    *current_level_collisions_ref = LevelCollisions(asset.level.layer_instances
+    *current_level_collisions_ref = LevelCollisionsSet(asset.level.layer_instances
       .clone()/*??*/
       .expect("expected layer_instances here").iter()
       .filter(|li| li.identifier.eq("Collisions"))
@@ -33,7 +34,7 @@ pub fn set_collisions_to_current_level(
       .map(|(i, v)| (u32::try_from(v.clone()).expect("expect int map values to be integers"), i as u32))
       .filter(|(v, coord_id)| v.clone()/*??*/ == 1/*collisions encoded into 1s*/)
       .map(|(_, coord_id)| CollisionIndex(usize::try_from(coord_id).expect("Collision index is too big")))
-      .collect::<Vec<CollisionIndex>>());
+      .collect::<HashSet<CollisionIndex>>());
     event_writer.send(CollisionsInitialized);
   });
 
@@ -43,7 +44,7 @@ pub fn draw_debug_collisions(
   mut commands: Commands,
   level_measurements: Res<LevelMeasurements>,
   mut event_reader: EventReader<CollisionsInitialized>,
-  level_collisions: Res<LevelCollisions>,
+  level_collisions: Res<LevelCollisionsSet>,
 ) {
   for _ in event_reader.iter() {
     for collision in level_collisions.0.iter() {
