@@ -1,7 +1,7 @@
 use std::collections::{BTreeSet, HashSet};
 use bevy::prelude::*;
 use bevy_ecs_ldtk::prelude::*;
-use bevy_ecs_ldtk::utils::{grid_coords_to_ldtk_grid_coords, int_grid_index_to_grid_coords, ldtk_grid_coords_to_grid_coords};
+use bevy_ecs_ldtk::utils::{grid_coords_to_ldtk_grid_coords, grid_coords_to_translation, int_grid_index_to_grid_coords, ldtk_grid_coords_to_grid_coords};
 use pathfinding::num_traits::Signed;
 use crate::building_area::{BuildingAreaTriggered, BuildingEntrance};
 extern crate pathfinding;
@@ -132,6 +132,9 @@ fn grid_coords_to_int_grid_index(grid_coords: &GridCoords, layer_width_in_tiles:
 
 }
 
+#[derive(Debug, Clone, PartialEq, Component)]
+pub struct MoveCompulsion(pub IVec2);
+
 #[test]
 fn test_grid_coords_to_int_grid_index() {
   // this one is simple: make sure that int_grid_index_to_grid_coords(grid_coords_to_int_grid_index(x)) == x
@@ -185,17 +188,121 @@ fn test_pathfind() {
   assert_eq!(pathfind(&0, &3, &collisions, &width, &height), None);
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Component)]
+pub struct PathCompulsion(pub Vec<usize>);
+
+// returns normalized f32, f32
+pub fn get_direction(from: &Vec2, to: &Vec2) -> Vec2 {
+  (*to - *from).normalize_or_zero()
+}
+
 pub fn pathfinding_system(
   mut event_reader: EventReader<BuildingAreaTriggered>,
   entrance_positional_query: Query<(&GridCoords, &BuildingEntrance)>,
-  player_positional_query: Query<(&GridCoords), With<Player>>,
+  player_positional_query: Query<(Entity, &GridCoords), With<Player>>,
   collisions: Res<LevelCollisionsSet>,
   level_measurements: Res<LevelMeasurements>,
+  mut commands: Commands,
 ) {
   for e in event_reader.iter() {
-    let player_i = grid_coords_to_int_grid_index(&player_positional_query.iter().next().expect("Player is required at this point"), level_measurements.c_wid, level_measurements.c_hei).expect("grid coords assumed to be valid at this point");
+    let (player_entity, player_coords) = player_positional_query.iter().next().expect("Player is required at this point");
+    let player_i = grid_coords_to_int_grid_index(&player_coords, level_measurements.c_wid, level_measurements.c_hei).expect("grid coords assumed to be valid at this point");
     let entrance = entrance_positional_query.get(e.entrance).expect("Entrance is required at this point");
     let i = grid_coords_to_int_grid_index(entrance.0, level_measurements.c_wid/*TODO probably not right*/, level_measurements.c_hei).expect("grid coords assumed to be valid at this point");
     let path = pathfind(&player_i, &i, &collisions.0, &level_measurements.c_wid, &level_measurements.c_hei);
+    match path {
+      Some((path, _)) => {
+        let mut entity_commands = commands.get_entity(player_entity).expect("player entity certainly exists");
+        entity_commands.insert(PathCompulsion(path));
+      }
+      None => {
+        println!("No path found");
+      }
+    }
+  }
+}
+
+pub fn unroll_path_system(mut commands: Commands, mut compulsion_query: Query<(Entity, &mut PathCompulsion, &GridCoords, &Transform, Option<&MoveCompulsion>)>, level_measurements: Res<LevelMeasurements>) {
+  for (e, mut compulsion, coords, transform, move_compulsion) in compulsion_query.iter_mut() {
+    let translation = transform.translation.truncate();
+    if move_compulsion.is_some() {
+      // we're already moving, so we don't need to do anything
+      continue;
+    }
+    match compulsion.0[..] {
+      [] => {
+        // no path, no compulsion
+        commands.entity(e).remove::<PathCompulsion>();
+        println!("path unrolled");
+        return;
+      }
+      [i, ..] => {
+        let next_coords = int_grid_index_to_grid_coords(i, level_measurements.c_wid, level_measurements.c_hei).expect("grid coords assumed to be valid at this point");
+        let next_translation = grid_coords_to_translation(next_coords, IVec2::new(level_measurements.c_wid as i32, level_measurements.c_hei as i32));
+        if translation == next_translation {
+          // we're already on this tile; cut down compulsion
+          println!("cutting compulsion");
+          *compulsion = PathCompulsion(compulsion.0[1..].to_vec());
+          continue;
+        }
+        println!("adding move compulsion {:?}", next_translation.as_ivec2());
+        commands.entity(e).insert(MoveCompulsion(next_translation.as_ivec2()));
+      }
+    }
+    // cut the compulsion until we reach the next tile; it means we iterate the path removing things until we found the tile we're standing on
+    // let mut i = 0;
+    // while i < compulsion.0.len() {
+    //   if compulsion.0[i] == grid_coords_to_int_grid_index(coords, level_measurements.c_wid, level_measurements.c_hei).expect("grid coords assumed to be valid at this point") {
+    //     break;
+    //   }
+    //   i += 1;
+    // }
+    // if i == compulsion.0.len() {
+    //   // we didn't find the tile we're standing on in the path, so we're not compelled to move anywhere
+    //   commands.entity(e).remove::<PathCompulsion>();
+    //   println!("path unrolled");
+    //   return;
+    // } else {
+    //   // we found the tile we're standing on in the path; cut all the previous one
+    //   compulsion.0 = compulsion.0.split_off(i); // the tile we're standing on is kept
+    // }
+    // let mut entity_commands = commands.get_entity(e).expect("entity certainly exists");
+    // // now if it's the last tile, we must complete our compulsion until the middle of the tile
+    // // and if we're in the middle of the last tile finally, we can remove the compulsion entirely
+    // match compulsion.0[..] {
+    //   [] => panic!("compulsion isn't empty at this point"),
+    //   [last_tile] => {
+    //     let last_tile_coords = int_grid_index_to_grid_coords(last_tile, level_measurements.c_wid, level_measurements.c_hei).expect("grid coords assumed to be valid at this point");
+    //     let last_tile_translation = grid_coords_to_translation(last_tile_coords, IVec2::new(level_measurements.c_wid as i32, level_measurements.c_hei as i32));
+    //     let direction = get_direction(&translation, &last_tile_translation);
+    //     if direction == Vec2::ZERO {
+    //       // goal reached
+    //       commands.entity(e).remove::<PathCompulsion>();
+    //     } else {
+    //       // we're in the middle of the last tile, so we must complete our compulsion until the middle of the tile
+    //       entity_commands.insert(MoveCompulsion(direction));
+    //     }
+    //   }
+    //   // at least two tiles left
+    //   [current_tile, next_tile, ..] => {
+    //     let current_tile_coords = int_grid_index_to_grid_coords(current_tile, level_measurements.c_wid, level_measurements.c_hei).expect("grid coords assumed to be valid at this point");
+    //     println!("current_tile_coords: {:?}", current_tile_coords);
+    //     let current_tile_translation = grid_coords_to_translation(current_tile_coords, IVec2::new(level_measurements.c_wid as i32, level_measurements.c_hei as i32));
+    //     println!("current_tile_translation: {:?}", current_tile_translation);
+    //     println!("my translation: {:?}", translation);
+    //     if current_tile_translation != translation {
+    //       // we're not in the middle of the tile, so we must complete our compulsion until the middle of the tile
+    //       let direction = get_direction(&translation, &current_tile_translation);
+    //       println!("direction: {:?}", direction);
+    //       entity_commands.insert(MoveCompulsion(direction));
+    //       return;
+    //     }
+    //     println!("in the middle!");
+    //     let next_tile_coords = int_grid_index_to_grid_coords(next_tile, level_measurements.c_wid, level_measurements.c_hei).expect("grid coords assumed to be valid at this point");
+    //     let next_tile_translation = grid_coords_to_translation(next_tile_coords, IVec2::new(level_measurements.c_wid as i32, level_measurements.c_hei as i32));
+    //     let direction = get_direction(&translation, &next_tile_translation);
+    //     entity_commands.insert(MoveCompulsion(direction));
+    //   }
+
   }
 }

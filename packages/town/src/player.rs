@@ -4,9 +4,11 @@ use bevy_ecs_ldtk::prelude::*;
 use bevy_ecs_ldtk::utils::{grid_coords_to_translation, int_grid_index_to_grid_coords, ldtk_pixel_coords_to_grid_coords, translation_to_grid_coords};
 use crate::collisions::{CollisionIndex, LevelCollisionsSet};
 use crate::level_measurements::LevelMeasurements;
+use crate::pathfinding::{get_direction, MoveCompulsion, PathCompulsion};
 use crate::starting_point::{StartingPoint, StartingPointInitialized};
 
 pub const PLAYER_SPEED: f32 = 50.0;
+pub const COMPULSED_SPEED: f32 = 100.0;
 
 #[derive(Component)]
 pub struct Player;
@@ -18,7 +20,7 @@ pub fn respawn_player_system(
   level_measurements: Res<LevelMeasurements>
 ) {
   for start_point in event_reader.iter() {
-    let mut e = commands.spawn(
+    commands.spawn(
       (
         SpriteBundle {
           transform: Transform::from_translation(Vec3::from((
@@ -43,11 +45,13 @@ pub fn respawn_player_system(
 
 pub fn player_movement(
   keyboard_input: Res<Input<KeyCode>>,
-  mut query: Query<(&mut Transform, &mut GridCoords), With<Player>>,
+  mut query: Query<(&mut Transform, &mut GridCoords, Option<&MoveCompulsion>, Entity), With<Player>>,
   time: Res<Time>,
-  level_measurements: Res<LevelMeasurements>
+  level_measurements: Res<LevelMeasurements>,
+  mut commands: Commands
 ) {
-  for (mut transform, mut grid_coords) in query.iter_mut() {
+  for (mut transform, mut grid_coords, move_compulsion, entity) in query.iter_mut() {
+    let mut translation = transform.translation.truncate();
     let mut direction = Vec3::ZERO;
     if keyboard_input.pressed(KeyCode::A) {
       direction.x -= 1.0;
@@ -62,9 +66,42 @@ pub fn player_movement(
       direction.y -= 1.0;
     }
 
-    direction = direction.try_normalize().unwrap_or_else(|| direction);
+    fn get_translation_diff(direction: Vec3, time: &Time, speed: f32) -> Vec3 {
+      direction * speed * time.delta_seconds()
+    }
 
-    transform.translation += direction * PLAYER_SPEED * time.delta_seconds();
+    fn signum(vec: Vec3) -> Vec3 {
+      Vec3::from((vec.x.signum(), vec.y.signum(), vec.z.signum()))
+    }
+    let mut speed = PLAYER_SPEED;
+    match move_compulsion {
+      Some(compulsion) => {
+        if direction != Vec3::ZERO {
+          // don't thread on me
+          commands.entity(entity).remove::<MoveCompulsion>();
+          commands.entity(entity).remove::<PathCompulsion>();
+        } else {
+          // compulsed movement is faster
+          speed = COMPULSED_SPEED;
+          direction = Vec3::from((get_direction(&translation, &compulsion.0.as_vec2()), 0.0));
+          let translation_to_be = transform.translation + get_translation_diff(direction, &time, speed);
+          let direction_to_be = Vec3::from((get_direction(&translation_to_be.truncate(), &compulsion.0.as_vec2()), 0.0));
+          if signum(direction_to_be) != signum(direction) { // overshoot; we DID pass the
+            let sticky = Vec3::from((compulsion.0.as_vec2(), transform.translation.z));
+            // forcefully stick the player to the coords
+            transform.translation = sticky;
+            commands.entity(entity).remove::<MoveCompulsion>();
+            return;
+          }
+        }
+
+      },
+      None => {}
+    };
+
+    direction = direction.normalize_or_zero();
+
+    transform.translation += get_translation_diff(direction, &time, speed);
     update_player_grid_coords(&mut grid_coords, &transform, &level_measurements);
 
   }

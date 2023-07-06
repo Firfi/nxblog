@@ -22,7 +22,7 @@ use crate::building_area::{building_area_cursor_system, BuildingAreaBundle, Buil
 use crate::collisions::{LevelCollisionsSet, set_collisions_to_current_level, CollisionsInitialized, draw_debug_collisions};
 use crate::cursor::{CursorPos, update_cursor_pos};
 use crate::level_measurements::{LevelMeasurements, set_level_measurements_to_current_level};
-use crate::pathfinding::pathfinding_system;
+use crate::pathfinding::{pathfinding_system, unroll_path_system};
 use crate::player::{confine_player_movement, player_movement, respawn_player_system};
 
 #[wasm_bindgen]
@@ -67,8 +67,9 @@ fn main() {
     .add_system(player_movement)
     .add_system(confine_player_movement.after(player_movement).after(set_collisions_to_current_level))
     .add_system(set_collisions_to_current_level)
-    .add_system(draw_debug_collisions)
+    // .add_system(draw_debug_collisions)
     .add_system(pathfinding_system)
+    .add_system(unroll_path_system)
     // not needed; for egui inspector
     .register_type::<UrlPath>()
     .register_type::<BuildingEntranceRef>()
