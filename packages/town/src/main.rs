@@ -23,7 +23,7 @@ use crate::collisions::{LevelCollisionsSet, set_collisions_to_current_level, Col
 use crate::cursor::{CursorPos, update_cursor_pos};
 use crate::level_measurements::{LevelMeasurements, set_level_measurements_to_current_level};
 use crate::pathfinding::{pathfinding_system, unroll_path_system};
-use crate::player::{confine_player_movement, player_movement, respawn_player_system};
+use crate::player::{confine_player_movement, player_animation_system, player_movement_system, respawn_player_system};
 
 #[wasm_bindgen]
 extern {
@@ -64,8 +64,9 @@ fn main() {
     .register_ldtk_entity::<StartingPointBundle>("StartingPoint")
     .add_system(building_area_cursor_system)
     .add_system(respawn_player_system.after(set_level_measurements_to_current_level))
-    .add_system(player_movement)
-    .add_system(confine_player_movement.after(player_movement).after(set_collisions_to_current_level))
+    .add_system(player_movement_system)
+    .add_system(player_animation_system)
+    .add_system(confine_player_movement.after(player_movement_system).after(set_collisions_to_current_level))
     .add_system(set_collisions_to_current_level)
     // .add_system(draw_debug_collisions)
     .add_system(pathfinding_system)

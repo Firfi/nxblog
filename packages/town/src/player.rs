@@ -20,7 +20,7 @@ pub fn respawn_player_system(
   mut commands: Commands,
   asset_server: Res<AssetServer>,
   mut event_reader: EventReader<StartingPointInitialized>,
-  level_measurements: Res<LevelMeasurements>
+  level_measurements: Res<LevelMeasurements>,
 ) {
   let texture_handle: Handle<Image> = asset_server.load(PLAYER_ANIMATION_SPRITE_PATH);
   let tilemap_metadata = PLAYER_ANIMATION_SPRITE_METADATA;
@@ -33,21 +33,40 @@ pub fn respawn_player_system(
         IVec2::new(level_measurements.c_wid as i32, level_measurements.c_hei as i32)),
       10.0/*TODO relative to world/level/layers*/)));
     let tile_pos = TilePos::new(0, 0);
+    let tile_pos2 = TilePos::new(1, 0);
+    let mut tile_storage = TileStorage::empty(tilemap_metadata.size);
     let tile_entity = commands.spawn((
       TileBundle {
         position: tile_pos,
         tilemap_id: TilemapId(tilemap_entity),
-        texture_index: TileTextureIndex(0), // TODO
+        texture_index: TileTextureIndex(0), // TODO??
         ..Default::default()
       },
       AnimatedTile {
+        // looking up // TODO constants
         start: 0,
         end: 2,
         speed: 0.95,
       },
     ));
-    let mut tile_storage = TileStorage::empty(tilemap_metadata.size);
     tile_storage.set(&tile_pos, tile_entity.id());
+    // let tile_entity2 = commands.spawn((
+    //   TileBundle {
+    //     position: tile_pos,
+    //     visible: TileVisible(false),
+    //     tilemap_id: TilemapId(tilemap_entity),
+    //     texture_index: TileTextureIndex(1), // TODO??
+    //     ..Default::default()
+    //   },
+    //   AnimatedTile {
+    //     start: 2,
+    //     end: 4,
+    //     speed: 0.95,
+    //   },
+    // ));
+    // tile_storage.set(&tile_pos2, tile_entity2.id());
+
+
     let map_type = TilemapType::Square;
     commands.entity(tilemap_entity).insert(
       (
@@ -62,19 +81,6 @@ pub fn respawn_player_system(
           transform,
           ..Default::default()
         },
-        // SpriteBundle {
-        //   transform: Transform::from_translation(Vec3::from((
-        //     grid_coords_to_translation(
-        //       start_point.grid_coords.clone(),
-        //       IVec2::new(level_measurements.c_wid as i32, level_measurements.c_hei as i32)),
-        //     10.0/*TODO relative to world/level/layers*/))),
-        //   texture: asset_server.load("sprites/star.png"),
-        //   sprite: Sprite {
-        //     custom_size: Some(Vec2::new(16.0, 16.0)),
-        //     ..default()
-        //   },
-        //   ..default()
-        // },
         AnimationStateBundle::default(),
         Player,
         start_point.grid_coords.clone(),
@@ -84,18 +90,32 @@ pub fn respawn_player_system(
   }
 }
 
-#[derive(Component)]
-enum MovingState {
+#[derive(Component, Debug, Eq, PartialEq)]
+pub enum MovingState {
   Idle,
   Moving
 }
 
-#[derive(Component)]
-enum LookDirection {
+#[derive(Component, Debug, Eq, PartialEq)]
+pub enum LookDirection {
   Up,
   Down,
   Left,
   Right
+}
+
+pub fn look_direction_from_direction(v: Vec2) -> Option<LookDirection> {
+  if v.x > 0.0 {
+    Some(LookDirection::Right)
+  } else if v.x < 0.0 {
+    Some(LookDirection::Left)
+  } else if v.y > 0.0 {
+    Some(LookDirection::Up)
+  } else if v.y < 0.0 {
+    Some(LookDirection::Down)
+  } else {
+    None
+  }
 }
 
 #[derive(Bundle)]
@@ -128,14 +148,69 @@ const PLAYER_ANIMATION_SPRITE_METADATA: TilemapMetadata = TilemapMetadata {
   gap: 16
 };
 
-pub fn player_movement(
+pub fn player_animation_system(
+  mut query: Query<(&mut TileStorage, &LookDirection, &MovingState), (With<Player>, Or<(Changed<LookDirection>, Changed<MovingState>)>)>,
+  mut tiles_query: Query<&mut AnimatedTile>) {
+  for (mut tile_storage, look_direction, moving_state) in query.iter_mut() {
+    let entity = tile_storage.get(&TilePos {x: 0, y: 0}).expect("player tile is here by this point");
+    let mut animated_tile = tiles_query.get_mut(entity).expect("player tile has animated tile component");
+    // TODO all these mutations seem to do nothing;
+    // TODO probably just use texture atlas
+    match (moving_state, look_direction) {
+      (MovingState::Idle, LookDirection::Up) => {
+        //
+        animated_tile.start = 4;
+        animated_tile.end = 6;
+      },
+      (MovingState::Idle, LookDirection::Down) => {
+        //
+        animated_tile.start = 0;
+        animated_tile.end = 2;
+      },
+      (MovingState::Idle, LookDirection::Left) => {
+        //
+        animated_tile.start = 8;
+        animated_tile.end = 10;
+      },
+      (MovingState::Idle, LookDirection::Right) => {
+        //
+        animated_tile.start = 12;
+        animated_tile.end = 14;
+      },
+      (MovingState::Moving, LookDirection::Up) => {
+        //
+        animated_tile.start = 6;
+        animated_tile.end = 8;
+      },
+      (MovingState::Moving, LookDirection::Down) => {
+        //
+        animated_tile.start = 2;
+        animated_tile.end = 4;
+      },
+      (MovingState::Moving, LookDirection::Left) => {
+        //
+        animated_tile.start = 10;
+        animated_tile.end = 12;
+      },
+      (MovingState::Moving, LookDirection::Right) => {
+        //
+        animated_tile.start = 14;
+        animated_tile.end = 16;
+      },
+    }
+    tile_storage.set_changed();
+    animated_tile.set_changed();
+  }
+}
+
+pub fn player_movement_system(
   keyboard_input: Res<Input<KeyCode>>,
-  mut query: Query<(&mut Transform, &mut GridCoords, Option<&MoveCompulsion>, Entity), With<Player>>,
+  mut query: Query<(&mut Transform, &mut GridCoords, Option<&MoveCompulsion>, &mut LookDirection, &mut MovingState, Entity), With<Player>>,
   time: Res<Time>,
   level_measurements: Res<LevelMeasurements>,
   mut commands: Commands
 ) {
-  for (mut transform, mut grid_coords, move_compulsion, entity) in query.iter_mut() {
+  for (mut transform, mut grid_coords, move_compulsion, mut look_direction, mut moving_state, entity) in query.iter_mut() {
     let translation = transform.translation.truncate();
     let mut direction = Vec3::ZERO;
     if keyboard_input.pressed(KeyCode::A) {
@@ -185,6 +260,23 @@ pub fn player_movement(
     };
 
     direction = direction.normalize_or_zero();
+
+    if direction != Vec3::ZERO {
+      let look_direction_next = look_direction_from_direction(direction.truncate()).expect("direction is not zero at this point");
+      // otherwise triggers unnecessary Changed<> ...
+      if look_direction_next != *look_direction {
+        *look_direction = look_direction_next;
+      }
+      let moving_state_next = MovingState::Moving;
+      if moving_state_next != *moving_state {
+        *moving_state = moving_state_next;
+      }
+    } else {
+      let moving_state_next = MovingState::Idle;
+      if moving_state_next != *moving_state {
+        *moving_state = moving_state_next;
+      }
+    }
 
     transform.translation += get_translation_diff(direction, &time, speed);
     update_player_grid_coords(&mut grid_coords, &transform, &level_measurements);
