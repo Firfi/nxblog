@@ -1,6 +1,9 @@
+use std::prelude::*;
+use std::default::Default;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use bevy_ecs_ldtk::prelude::*;
+use bevy_ecs_tilemap::prelude::*;
 use bevy_ecs_ldtk::utils::{grid_coords_to_translation, int_grid_index_to_grid_coords, ldtk_pixel_coords_to_grid_coords, translation_to_grid_coords};
 use crate::collisions::{CollisionIndex, LevelCollisionsSet};
 use crate::level_measurements::LevelMeasurements;
@@ -19,22 +22,60 @@ pub fn respawn_player_system(
   mut event_reader: EventReader<StartingPointInitialized>,
   level_measurements: Res<LevelMeasurements>
 ) {
+  let texture_handle: Handle<Image> = asset_server.load(PLAYER_ANIMATION_SPRITE_PATH);
+  let tilemap_metadata = PLAYER_ANIMATION_SPRITE_METADATA;
+
+  let tilemap_entity = commands.spawn_empty().id();
   for start_point in event_reader.iter() {
-    commands.spawn(
+    let transform = Transform::from_translation(Vec3::from((
+      grid_coords_to_translation(
+        start_point.grid_coords.clone(),
+        IVec2::new(level_measurements.c_wid as i32, level_measurements.c_hei as i32)),
+      10.0/*TODO relative to world/level/layers*/)));
+    let tile_pos = TilePos::new(0, 0);
+    let tile_entity = commands.spawn((
+      TileBundle {
+        position: tile_pos,
+        tilemap_id: TilemapId(tilemap_entity),
+        texture_index: TileTextureIndex(0), // TODO
+        ..Default::default()
+      },
+      AnimatedTile {
+        start: 0,
+        end: 2,
+        speed: 0.95,
+      },
+    ));
+    let mut tile_storage = TileStorage::empty(tilemap_metadata.size);
+    tile_storage.set(&tile_pos, tile_entity.id());
+    let map_type = TilemapType::Square;
+    commands.entity(tilemap_entity).insert(
       (
-        SpriteBundle {
-          transform: Transform::from_translation(Vec3::from((
-            grid_coords_to_translation(
-              start_point.grid_coords.clone(),
-              IVec2::new(level_measurements.c_wid as i32, level_measurements.c_hei as i32)),
-            10.0/*TODO relative to world/level/layers*/))),
-          texture: asset_server.load("sprites/star.png"),
-          sprite: Sprite {
-            custom_size: Some(Vec2::new(16.0, 16.0)),
-            ..default()
-          },
-          ..default()
+        TilemapBundle {
+          spacing: TilemapSpacing {x: 32.0, y: 32.0},
+          size: tilemap_metadata.size,
+          grid_size: tilemap_metadata.grid_size,
+          map_type,
+          tile_size: tilemap_metadata.tile_size,
+          storage: tile_storage,
+          texture: TilemapTexture::Single(texture_handle.clone()),
+          transform,
+          ..Default::default()
         },
+        // SpriteBundle {
+        //   transform: Transform::from_translation(Vec3::from((
+        //     grid_coords_to_translation(
+        //       start_point.grid_coords.clone(),
+        //       IVec2::new(level_measurements.c_wid as i32, level_measurements.c_hei as i32)),
+        //     10.0/*TODO relative to world/level/layers*/))),
+        //   texture: asset_server.load("sprites/star.png"),
+        //   sprite: Sprite {
+        //     custom_size: Some(Vec2::new(16.0, 16.0)),
+        //     ..default()
+        //   },
+        //   ..default()
+        // },
+        AnimationStateBundle::default(),
         Player,
         start_point.grid_coords.clone(),
       )
@@ -42,6 +83,50 @@ pub fn respawn_player_system(
     // e.set_parent()
   }
 }
+
+#[derive(Component)]
+enum MovingState {
+  Idle,
+  Moving
+}
+
+#[derive(Component)]
+enum LookDirection {
+  Up,
+  Down,
+  Left,
+  Right
+}
+
+#[derive(Bundle)]
+pub struct AnimationStateBundle {
+  moving_state: MovingState,
+  look_direction: LookDirection
+}
+
+impl Default for AnimationStateBundle {
+  fn default() -> Self {
+    Self {
+      moving_state: MovingState::Idle,
+      look_direction: LookDirection::Up
+    }
+  }
+}
+
+struct TilemapMetadata {
+  size: TilemapSize,
+  tile_size: TilemapTileSize,
+  grid_size: TilemapGridSize,
+  gap: usize
+}
+
+const PLAYER_ANIMATION_SPRITE_PATH: &str = "atlas/sprout-lands-basic-character-sheet.png";
+const PLAYER_ANIMATION_SPRITE_METADATA: TilemapMetadata = TilemapMetadata {
+  size: TilemapSize { x: 16, y: 16 },
+  tile_size: TilemapTileSize { x: 16.0, y: 16.0 },
+  grid_size: TilemapGridSize { x: 16.0, y: 16.0 },
+  gap: 16
+};
 
 pub fn player_movement(
   keyboard_input: Res<Input<KeyCode>>,
@@ -51,7 +136,7 @@ pub fn player_movement(
   mut commands: Commands
 ) {
   for (mut transform, mut grid_coords, move_compulsion, entity) in query.iter_mut() {
-    let mut translation = transform.translation.truncate();
+    let translation = transform.translation.truncate();
     let mut direction = Vec3::ZERO;
     if keyboard_input.pressed(KeyCode::A) {
       direction.x -= 1.0;
