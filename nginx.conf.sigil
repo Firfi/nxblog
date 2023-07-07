@@ -1,33 +1,41 @@
-server {
-  listen      [::]:{{ .NGINX_PORT }};
-  listen      {{ .NGINX_PORT }};
-  server_name {{ .NOSSL_SERVER_NAME }};
-  access_log  /var/log/nginx/{{ .APP }}-access.log;
-  error_log   /var/log/nginx/{{ .APP }}-error.log;
+worker_processes 1;
+error_log stderr;
+pid nginx.pid;
+daemon off;
 
-  gzip on;
-  gzip_min_length  1100;
-  gzip_buffers  4 32k;
-  gzip_types    text/css text/javascript text/xml text/plain text/x-component application/javascript application/x-javascript application/json application/xml  application/rss+xml font/truetype application/x-font-ttf font/opentype application/vnd.ms-fontobject image/svg+xml application/wasm;
-  gzip_vary on;
-  gzip_comp_level  6;
-
-  location    / {
-    proxy_pass  http://{{ .APP }};
-    proxy_http_version 1.1;
-    proxy_set_header Upgrade $http_upgrade;
-    proxy_set_header Connection "upgrade";
-    proxy_set_header Host $http_host;
-    proxy_set_header X-Forwarded-Proto $scheme;
-    proxy_set_header X-Forwarded-For $remote_addr;
-    proxy_set_header X-Forwarded-Port $server_port;
-    proxy_set_header X-Request-Start $msec;
-  }
-  include {{ .DOKKU_ROOT }}/{{ .APP }}/nginx.conf.d/*.conf;
+events {
+  worker_connections 768;
 }
 
-upstream {{ .APP }} {
-{{ range .DOKKU_APP_LISTENERS | split " " }}
-  server {{ . }};
-{{ end }}
+http {
+  types_hash_max_size 2048;
+  include mime.types;
+  charset UTF-8;
+  server {
+
+    gzip on;
+    gzip_min_length  1100;
+    gzip_buffers  4 32k;
+    gzip_types    text/css text/javascript text/xml text/plain text/x-component application/javascript application/x-javascript application/json application/xml  application/rss+xml font/truetype application/x-font-ttf font/opentype application/vnd.ms-fontobject image/svg+xml application/wasm;
+    gzip_vary on;
+    gzip_comp_level  6;
+
+    listen {{ $.PORT }};
+    server_name  _;
+    {{ if ne $.NGINX_ROOT "" }}
+      root /app/www/{{ $.NGINX_ROOT }};
+    {{ else }}
+      root /app/www;
+    {{ end }}
+    index index.html;
+    port_in_redirect off;
+
+    location / {
+      {{ if ne $.NGINX_DEFAULT_REQUEST "" }}
+        try_files $uri $uri/ /{{ $.NGINX_DEFAULT_REQUEST }};
+      {{ else }}
+        try_files $uri $uri/ =404;
+      {{ end }}
+    }
+  }
 }
