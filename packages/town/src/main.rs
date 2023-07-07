@@ -34,14 +34,15 @@ extern {
 }
 
 #[wasm_bindgen]
-pub fn greet() {
-  main();
+pub fn greet(canvas_id: &str) {
+  init(Some(canvas_id));
 }
 
-fn main() {
+fn init(canvas_id: Option<&str>) {
   App::new()
     .add_plugins(DefaultPlugins.set(WindowPlugin {
       primary_window: Some(Window {
+        canvas: canvas_id.map(|id| "#".to_string() + id),
         // can hardcode it as we know the size of the map beforehand
         resolution: WindowResolution::from((256.0, 256.0)),
         title: "Url Town".to_string(),
@@ -75,6 +76,10 @@ fn main() {
     .add_event::<StartingPointInitialized>()
     .add_event::<BuildingAreaTriggered>()
     .run();
+}
+
+fn main() {
+  init(None);
 }
 
 fn setup(mut commands: Commands, window_query: Query<&Window, With<PrimaryWindow>>) {

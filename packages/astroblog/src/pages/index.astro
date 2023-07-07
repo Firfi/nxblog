@@ -3,16 +3,18 @@ import Layout from '../layouts/Layout.astro';
 import TownMenu from '../components/menu/town.tsx';
 ---
 
-<Layout title="Welcome to Astro.">
+<Layout title="Welcome">
 	<main>
-		<h1>Welcome to <span class="text-gradient">Astro</span></h1>
+		<h1>Welcome. Enjoy.</h1>
 		<p class="instructions">
-			To get started, open the directory <code>src/pages</code> in your project.<br />
-			<strong>Code Challenge:</strong> Tweak the "Welcome to Astro" message above.
+      Okay, listen, stranger. Just a few steps to the north, there's a towering castle, where the blog, a place of shared wisdom and stories, resides. And right over there to the east, tucked away behind a modest shed, you'll find the resume - a gateway to self-reflection, skills, and growth.
 		</p>
-		<ul role="list" class="link-card-grid">
+    <p class="instructions">
+      W A S D or click/tap the houses. Enjoy!
+    </p>
+		<div class="town-menu-wrapper">
 			<TownMenu client:only="react" />
-		</ul>
+		</div>
 	</main>
 </Layout>
 
@@ -53,10 +55,8 @@ import TownMenu from '../components/menu/town.tsx';
 	.instructions strong {
 		color: rgb(var(--accent));
 	}
-	.link-card-grid {
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(24ch, 1fr));
-		gap: 1rem;
-		padding: 0;
+	.town-menu-wrapper {
+		display: flex;
+    justify-content: center;
 	}
 </style>

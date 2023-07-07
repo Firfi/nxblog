@@ -2,7 +2,11 @@
   "name": "@nxblog/source",
   "version": "0.0.0",
   "license": "MIT",
-  "scripts": {},
+  "scripts": {
+    "build:all": "npx nx build town && npx nx build astroblog && cp -R packages/town/assets dist/packages/astroblog",
+    "build:run": "cd dist/packages/astroblog && python3 -m http.server",
+    "build:all-and-run": "npm run build:all && npm run build:run"
+  },
   "private": true,
   "dependencies": {
     "@astrojs/react": "^2.2.1",
