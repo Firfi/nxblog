@@ -6,9 +6,9 @@ use pathfinding::num_traits::Signed;
 use crate::building_area::{BuildingAreaTriggered, BuildingEntrance};
 extern crate pathfinding;
 use pathfinding::prelude::astar;
-use crate::collisions::{CollisionIndex, LevelCollisionsSet};
+use crate::collisions::resources::{CollisionIndex, LevelCollisionsSet};
 use crate::level_measurements::LevelMeasurements;
-use crate::player::Player;
+use crate::player::components::Player;
 
 fn int_cell_1d_to_2d_index(cell_index: usize, width_in_cells: usize) -> (usize, usize) {
   let x = cell_index % width_in_cells;
@@ -245,7 +245,6 @@ pub fn unroll_path_system(mut commands: Commands, mut compulsion_query: Query<(E
           *compulsion = PathCompulsion(compulsion.0[1..].to_vec());
           continue;
         }
-        println!("adding move compulsion {:?}", next_translation.as_ivec2());
         commands.entity(e).insert(MoveCompulsion(next_translation.as_ivec2()));
       }
     }

@@ -30,10 +30,10 @@ features = [
   "bevy_core_pipeline"
 ]
 
-
-#[lib]
-#crate-type = ["cdylib", "rlib"]
-#path = "src/main.rs"
+# you can comment me when working with Idea, it bugs out
+[lib]
+crate-type = ["cdylib", "rlib"]
+path = "src/main.rs"
 
 [[bin]]
 name = "devbin"

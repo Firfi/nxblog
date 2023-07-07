@@ -25,18 +25,43 @@ pub struct BuildingAreaBundle {
   // sprite_bundle: SpriteSheetBundle,
 }
 
+pub fn building_area_touches_system(
+  touches: Res<Touches>,
+  mut event_writer: EventWriter<BuildingAreaTriggered>,
+  transforms_query: Query<(&LevelPositional, &BuildingEntranceRef)>
+) {
+  for finger in touches.iter() {
+    for entrance in transforms_query.iter().filter(|e| {
+      let position = finger.position();
+      inside_level_positional(&e.0, &position.as_ivec2())
+    }).map(|e| e.1) {
+      event_writer.send(BuildingAreaTriggered {
+        entrance: entrance.0
+      });
+    }
+  }
+
+}
+
+fn inside_level_positional(level_positional: &LevelPositional, xy: &IVec2) -> bool {
+  let gpxx_min = level_positional.px.x;
+  let gpxx_max = gpxx_min + level_positional.width;
+  let gpxy_min = level_positional.px.y;
+  let gpxy_max = gpxy_min + level_positional.height;
+  xy.x > gpxx_min && xy.x < gpxx_max
+    && xy.y > gpxy_min && xy.y < gpxy_max
+}
+
 pub fn building_area_cursor_system(transforms_query: Query<(&LevelPositional, &BuildingEntranceRef)>,
                                    cursor_position_res: Res<CursorPos>,
-
+                                   buttons: Res<Input<MouseButton>>,
   mut event_writer: EventWriter<BuildingAreaTriggered>
 ) {
+  if !buttons.just_pressed(MouseButton::Left) {
+    return;
+  }
   for entrance in transforms_query.iter().filter(|e| {
-    let gpxx_min = e.0.px.x;
-    let gpxx_max = gpxx_min + e.0.width;
-    let gpxy_min = e.0.px.y;
-    let gpxy_max = gpxy_min + e.0.height;
-    cursor_position_res.0.x > gpxx_min && cursor_position_res.0.x < gpxx_max
-      && cursor_position_res.0.y > gpxy_min && cursor_position_res.0.y < gpxy_max
+    inside_level_positional(&e.0, &cursor_position_res.0)
   }).map(|e| e.1) {
     event_writer.send(BuildingAreaTriggered {
       entrance: entrance.0

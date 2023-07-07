@@ -1,18 +1,14 @@
+use bevy::prelude::{Color, Commands, default, EventReader, EventWriter, Query, Res, ResMut, Sprite, SpriteBundle, Transform};
+use bevy_ecs_ldtk::{LdtkLevel, LevelEvent};
+use bevy::asset::{Assets, Handle};
 use std::collections::HashSet;
-use bevy::prelude::*;
-use bevy_ecs_ldtk::prelude::*;
-use itertools::*;
+use bevy::math::Vec2;
+use itertools::Itertools;
+use crate::collisions::utils;
+use crate::collisions::events::CollisionsInitialized;
+use crate::collisions::resources::{CollisionIndex, LevelCollisionsSet};
 use crate::level::level_utils::with_level_asset;
 use crate::level_measurements::LevelMeasurements;
-use crate::player::translation_from_collision_int;
-
-#[derive(Debug, Default, Resource, Deref, DerefMut, Clone, PartialEq, Eq, Hash)]
-pub struct CollisionIndex(pub usize);
-
-#[derive(Debug, Default, Resource, Deref, DerefMut, Clone, PartialEq, Eq)]
-pub struct LevelCollisionsSet(pub HashSet<CollisionIndex>);
-
-pub struct CollisionsInitialized;
 
 pub fn set_collisions_to_current_level(
   mut level_events: EventReader<LevelEvent>,
@@ -48,7 +44,7 @@ pub fn draw_debug_collisions(
 ) {
   for _ in event_reader.iter() {
     for collision in level_collisions.0.iter() {
-      let collision_grid_coords = translation_from_collision_int(&level_measurements, &collision);
+      let collision_grid_coords = utils::translation_from_collision_int(&level_measurements, &collision);
       // draw a square on z 10
       commands.spawn(SpriteBundle {
         // material: materials.add(Color::rgb(1.0, 0.0, 0.0).into()),

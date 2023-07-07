@@ -1,20 +1,19 @@
-use std::prelude::*;
-use std::default::Default;
-use bevy::prelude::*;
-use bevy::window::PrimaryWindow;
-use bevy_ecs_ldtk::prelude::*;
-use bevy_ecs_tilemap::prelude::*;
-use bevy_ecs_ldtk::utils::{grid_coords_to_translation, int_grid_index_to_grid_coords, ldtk_pixel_coords_to_grid_coords, translation_to_grid_coords};
-use crate::collisions::{CollisionIndex, LevelCollisionsSet};
+use bevy::prelude::{Changed, Commands, DetectChangesMut, Entity, EventReader, Image, KeyCode, Or, Query, Res, Time, Transform, With};
+use bevy_ecs_tilemap::prelude::{AnimatedTile, TileBundle, TilePos, TileStorage, TileTextureIndex};
+use bevy::asset::{AssetServer, Handle};
+use bevy::math::{IVec2, Vec3};
+use bevy_ecs_ldtk::utils::{grid_coords_to_translation, translation_to_grid_coords};
+use bevy_ecs_tilemap::map::{TilemapGridSize, TilemapId, TilemapSize, TilemapSpacing, TilemapTexture, TilemapTileSize, TilemapType};
+use bevy_ecs_tilemap::TilemapBundle;
+use bevy::input::Input;
+use bevy_ecs_ldtk::GridCoords;
+use crate::collisions::resources::LevelCollisionsSet;
 use crate::level_measurements::LevelMeasurements;
 use crate::pathfinding::{get_direction, MoveCompulsion, PathCompulsion};
-use crate::starting_point::{StartingPoint, StartingPointInitialized};
-
-pub const PLAYER_SPEED: f32 = 50.0;
-pub const COMPULSED_SPEED: f32 = 100.0;
-
-#[derive(Component)]
-pub struct Player;
+use crate::{collisions, player};
+use crate::player::{AnimationStateBundle, utils};
+use crate::player::components::{LookDirection, MovingState, Player, TilemapMetadata};
+use crate::starting_point::StartingPointInitialized;
 
 pub fn respawn_player_system(
   mut commands: Commands,
@@ -89,64 +88,6 @@ pub fn respawn_player_system(
     // e.set_parent()
   }
 }
-
-#[derive(Component, Debug, Eq, PartialEq)]
-pub enum MovingState {
-  Idle,
-  Moving
-}
-
-#[derive(Component, Debug, Eq, PartialEq)]
-pub enum LookDirection {
-  Up,
-  Down,
-  Left,
-  Right
-}
-
-pub fn look_direction_from_direction(v: Vec2) -> Option<LookDirection> {
-  if v.x > 0.0 {
-    Some(LookDirection::Right)
-  } else if v.x < 0.0 {
-    Some(LookDirection::Left)
-  } else if v.y > 0.0 {
-    Some(LookDirection::Up)
-  } else if v.y < 0.0 {
-    Some(LookDirection::Down)
-  } else {
-    None
-  }
-}
-
-#[derive(Bundle)]
-pub struct AnimationStateBundle {
-  moving_state: MovingState,
-  look_direction: LookDirection
-}
-
-impl Default for AnimationStateBundle {
-  fn default() -> Self {
-    Self {
-      moving_state: MovingState::Idle,
-      look_direction: LookDirection::Up
-    }
-  }
-}
-
-struct TilemapMetadata {
-  size: TilemapSize,
-  tile_size: TilemapTileSize,
-  grid_size: TilemapGridSize,
-  gap: usize
-}
-
-const PLAYER_ANIMATION_SPRITE_PATH: &str = "atlas/sprout-lands-basic-character-sheet.png";
-const PLAYER_ANIMATION_SPRITE_METADATA: TilemapMetadata = TilemapMetadata {
-  size: TilemapSize { x: 16, y: 16 },
-  tile_size: TilemapTileSize { x: 16.0, y: 16.0 },
-  grid_size: TilemapGridSize { x: 16.0, y: 16.0 },
-  gap: 16
-};
 
 pub fn player_animation_system(
   mut query: Query<(&mut TileStorage, &LookDirection, &MovingState), (With<Player>, Or<(Changed<LookDirection>, Changed<MovingState>)>)>,
@@ -262,7 +203,7 @@ pub fn player_movement_system(
     direction = direction.normalize_or_zero();
 
     if direction != Vec3::ZERO {
-      let look_direction_next = look_direction_from_direction(direction.truncate()).expect("direction is not zero at this point");
+      let look_direction_next = utils::look_direction_from_direction(direction.truncate()).expect("direction is not zero at this point");
       // otherwise triggers unnecessary Changed<> ...
       if look_direction_next != *look_direction {
         *look_direction = look_direction_next;
@@ -282,15 +223,6 @@ pub fn player_movement_system(
     update_player_grid_coords(&mut grid_coords, &transform, &level_measurements);
 
   }
-}
-
-pub fn translation_from_collision_int(level_measurements: &Res<LevelMeasurements>, collision_index: &CollisionIndex) -> Vec2 {
-
-  let grid_coords = int_grid_index_to_grid_coords(collision_index.0,
-                                level_measurements.px_wid / level_measurements.grid_size,
-                                level_measurements.px_hei / level_measurements.grid_size,
-  ).expect("grid coords not expected over boards");
-  grid_coords_to_translation(grid_coords, IVec2::new(level_measurements.grid_size as i32, level_measurements.grid_size as i32))
 }
 
 pub fn confine_player_movement(
@@ -323,7 +255,7 @@ pub fn confine_player_movement(
 
     for collision in level_collisions.0.iter() {
 
-      let collision_translation = translation_from_collision_int(&level_measurements, &collision);
+      let collision_translation = collisions::utils::translation_from_collision_int(&level_measurements, &collision);
       let collision_x_min = collision_translation.x - (level_measurements.grid_size / 2) as f32;
       let collision_x_max = collision_translation.x + (level_measurements.grid_size / 2) as f32;
       let collision_y_min = collision_translation.y - (level_measurements.grid_size / 2) as f32;
@@ -343,7 +275,7 @@ pub fn confine_player_movement(
         // from the left
         if player_x_max < collision_x_max {
           x_diff = player_x_max - collision_x_min;
-        // from the right
+          // from the right
         } else if player_x_max > collision_x_max {
           x_diff = player_x_min - collision_x_max;
         } else {
@@ -353,7 +285,7 @@ pub fn confine_player_movement(
         // from the top
         if player_y_max < collision_y_max {
           y_diff = player_y_max - collision_y_min;
-        // from the bottom
+          // from the bottom
         } else if player_y_max > collision_y_max {
           y_diff = player_y_min - collision_y_max;
         } else {
@@ -378,3 +310,14 @@ pub fn confine_player_movement(
 pub fn update_player_grid_coords(grid_coords: &mut GridCoords, transform: &Transform, level_measurements: &Res<LevelMeasurements>) {
   *grid_coords = translation_to_grid_coords(transform.translation.truncate(), IVec2::new(level_measurements.c_wid as i32, level_measurements.c_hei as i32));
 }
+
+pub const PLAYER_ANIMATION_SPRITE_PATH: &str = "atlas/sprout-lands-basic-character-sheet.png";
+pub const PLAYER_ANIMATION_SPRITE_METADATA: TilemapMetadata = TilemapMetadata {
+  size: TilemapSize { x: 16, y: 16 },
+  tile_size: TilemapTileSize { x: 16.0, y: 16.0 },
+  grid_size: TilemapGridSize { x: 16.0, y: 16.0 },
+  gap: 16
+};
+
+pub const PLAYER_SPEED: f32 = 50.0;
+pub const COMPULSED_SPEED: f32 = 100.0;
