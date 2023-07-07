@@ -1,6 +1,3 @@
-events {
-  worker_connections 768;
-}
 
 http {
   types_hash_max_size 2048;
