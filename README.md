@@ -1,4 +1,4 @@
-TODO probably just use https://github.com/JulianCataldo/astro-nannou-starter
+TODO build: no auto build; do manually the town (nx build town) , then site (nx build astroblog), then copy assets dir right into astroblog build root; it's baked
 
 TODO until this https://github.com/Cammisuli/monodon/pull/22 is resolved, I check out my fork and use it as dependency or as an alternative symlink it into packages: `ln -s ~/work/blog/monodon/packages/rust`
 

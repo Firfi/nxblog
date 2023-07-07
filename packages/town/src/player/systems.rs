@@ -11,6 +11,7 @@ use crate::collisions::resources::LevelCollisionsSet;
 use crate::level_measurements::LevelMeasurements;
 use crate::pathfinding::{get_direction, MoveCompulsion, PathCompulsion};
 use crate::{collisions, player};
+use crate::building_area::InsideEntrance;
 use crate::player::{AnimationStateBundle, utils};
 use crate::player::components::{LookDirection, MovingState, Player, TilemapMetadata};
 use crate::starting_point::StartingPointInitialized;
@@ -82,6 +83,7 @@ pub fn respawn_player_system(
         },
         AnimationStateBundle::default(),
         Player,
+        InsideEntrance::default(),
         start_point.grid_coords.clone(),
       )
     );

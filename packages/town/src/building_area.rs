@@ -65,7 +65,6 @@ fn inside_level_positional(level_positional: &LevelPositional, xy: &IVec2) -> bo
   let gpxx_max = gpxx_min + level_positional.width;
   let gpxy_min = level_positional.px.y;
   let gpxy_max = gpxy_min + level_positional.height;
-  println!("insiders: square: {:?}, point: {:?}", level_positional, xy);
   xy.x > gpxx_min && xy.x < gpxx_max
     && xy.y > gpxy_min && xy.y < gpxy_max
 }
@@ -100,18 +99,26 @@ impl UrlPath {
   }
 }
 
+#[derive(Debug, Default, Component)]
+pub struct InsideEntrance(pub bool);
+
 pub fn building_entrance_trigger_system(
   entrance_query: Query<(&LevelPositional, &UrlPath), With<BuildingEntrance>>,
-  player_query: Query<&Transform, With<Player>>,
+  mut player_query: Query<(&Transform, &mut InsideEntrance), With<Player>>,
   level_measurements: Res<LevelMeasurements>,
 ) {
-  for player_transform in player_query.iter() {
+  for (player_transform, mut inside_entrance) in player_query.iter_mut() {
+    let mut some_inside = false;
     for (entrance_positional, url_path) in entrance_query.iter() {
       if inside_level_positional(&entrance_positional, &translation_to_ldtk_pixel_coords(player_transform.translation.truncate(), level_measurements.px_hei as i32)) {
-        println!("going: {:?}", url_path.0);
+        some_inside = true;
+        if inside_entrance.0 {
+          continue;
+        }
         go_town(&url_path.0);
       }
     }
+    inside_entrance.0 = some_inside;
   }
 }
 
