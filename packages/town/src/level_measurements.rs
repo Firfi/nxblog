@@ -26,7 +26,9 @@ pub fn set_level_measurements_to_current_level(
     let level_asset = level_assets
       .get(level_handle)
       .expect("level asset should be loaded before LevelEvent::Transformed");
+    // println!("level_asset: {:?} {:?}", level_asset.level.world_x, level_asset.level.world_y);
     // for mouse position shenanigans
+
     let px_wid = u32::try_from(level_asset
       .level.px_wid).expect("negative level width?");
     let px_hei = u32::try_from(level_asset

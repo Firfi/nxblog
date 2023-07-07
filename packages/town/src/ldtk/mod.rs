@@ -9,9 +9,10 @@ mod systems;
 
 pub struct TownLdtkPlugin;
 
-impl bevy::app::Plugin for TownLdtkPlugin {
+impl Plugin for TownLdtkPlugin {
   fn build(&self, app: &mut App) {
     app.add_startup_system(setup_ldtk)
+      .insert_resource(LevelSelection::Index(0))
       .register_ldtk_entity::<BuildingAreaBundle>("BuildingArea")
       .register_ldtk_entity::<BuildingEntranceBundle>("BuildingEntrance")
       .register_ldtk_entity::<StartingPointBundle>("StartingPoint");

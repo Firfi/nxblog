@@ -18,6 +18,7 @@ use starting_point::*;
 
 use bevy::{prelude::*, winit::WinitSettings};
 use bevy::log::Level;
+use bevy::window::{PrimaryWindow, WindowResolution};
 use bevy_ecs_ldtk::utils::translation_to_ldtk_pixel_coords;
 use crate::building_area::{building_area_cursor_system, building_area_touches_system, building_entrance_trigger_system, BuildingAreaBundle, BuildingAreaTriggered, BuildingEntranceBundle, UrlPath};
 use crate::collisions::CollisionsPlugin;
@@ -39,7 +40,15 @@ pub fn greet() {
 
 fn main() {
   App::new()
-    .add_plugins(DefaultPlugins)
+    .add_plugins(DefaultPlugins.set(WindowPlugin {
+      primary_window: Some(Window {
+        // can hardcode it as we know the size of the map beforehand
+        resolution: WindowResolution::from((256.0, 256.0)),
+        title: "Url Town".to_string(),
+        ..default()
+      }),
+      ..default()
+    }))
     .add_plugin(LdtkPlugin)
     .insert_resource(WinitSettings::game())
     .add_startup_system(setup)
@@ -52,7 +61,7 @@ fn main() {
     .add_system(set_level_measurements_to_current_level)
     // .add_startup_system(button_setup)
     // .add_system(button_interaction_system)
-    .insert_resource(LevelSelection::Index(0))
+
     .init_resource::<CursorPos>()
     .init_resource::<LevelMeasurements>()
     .add_system(building_area_cursor_system)
@@ -68,9 +77,13 @@ fn main() {
     .run();
 }
 
-fn setup(mut commands: Commands) {
+fn setup(mut commands: Commands, window_query: Query<&Window, With<PrimaryWindow>>) {
+  let window = window_query.single();
   // ui camera
-  commands.spawn(Camera2dBundle::default());
+  commands.spawn(Camera2dBundle {
+    transform: Transform::from_xyz(window.width() / 2.0, window.height() / 2.0, 11.0),
+    ..default()
+  });
 
 }
 
