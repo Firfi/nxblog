@@ -1,8 +1,25 @@
 use bevy::prelude::*;
 use bevy_ecs_ldtk::prelude::*;
+use bevy_ecs_ldtk::utils::translation_to_ldtk_pixel_coords;
 use crate::building_entrance_ref::{BuildingEntranceRef, UnresolvedBuildingEntranceRef};
 use crate::cursor::CursorPos;
 use crate::level_positional::LevelPositional;
+use crate::player::components::Player;
+use wasm_bindgen::prelude::*;
+use crate::level_measurements::LevelMeasurements;
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+extern "C" {
+  #[wasm_bindgen(js_namespace = window)]
+  fn go_town(s: &str);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[wasm_bindgen]
+pub fn go_town(s: &str) {
+  println!("go_town stub: {}", s);
+}
 
 pub struct BuildingAreaTriggered {
   pub entrance: Entity
@@ -48,6 +65,7 @@ fn inside_level_positional(level_positional: &LevelPositional, xy: &IVec2) -> bo
   let gpxx_max = gpxx_min + level_positional.width;
   let gpxy_min = level_positional.px.y;
   let gpxy_max = gpxy_min + level_positional.height;
+  println!("insiders: square: {:?}, point: {:?}", level_positional, xy);
   xy.x > gpxx_min && xy.x < gpxx_max
     && xy.y > gpxy_min && xy.y < gpxy_max
 }
@@ -79,6 +97,21 @@ impl UrlPath {
         .get_string_field("path")
         .expect("expected entity to have non-nullable path str field").to_string(),
     )
+  }
+}
+
+pub fn building_entrance_trigger_system(
+  entrance_query: Query<(&LevelPositional, &UrlPath), With<BuildingEntrance>>,
+  player_query: Query<&Transform, With<Player>>,
+  level_measurements: Res<LevelMeasurements>,
+) {
+  for player_transform in player_query.iter() {
+    for (entrance_positional, url_path) in entrance_query.iter() {
+      if inside_level_positional(&entrance_positional, &translation_to_ldtk_pixel_coords(player_transform.translation.truncate(), level_measurements.px_hei as i32)) {
+        println!("going: {:?}", url_path.0);
+        go_town(&url_path.0);
+      }
+    }
   }
 }
 

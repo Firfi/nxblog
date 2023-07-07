@@ -233,7 +233,6 @@ pub fn unroll_path_system(mut commands: Commands, mut compulsion_query: Query<(E
       [] => {
         // no path, no compulsion
         commands.entity(e).remove::<PathCompulsion>();
-        println!("path unrolled");
         return;
       }
       [i, ..] => {
@@ -241,7 +240,6 @@ pub fn unroll_path_system(mut commands: Commands, mut compulsion_query: Query<(E
         let next_translation = grid_coords_to_translation(next_coords, IVec2::new(level_measurements.c_wid as i32, level_measurements.c_hei as i32));
         if translation == next_translation {
           // we're already on this tile; cut down compulsion
-          println!("cutting compulsion");
           *compulsion = PathCompulsion(compulsion.0[1..].to_vec());
           continue;
         }
