@@ -15,6 +15,13 @@ import TownMenu from '../components/menu/town.tsx';
 		<div class="town-menu-wrapper">
 			<TownMenu client:only="react" />
 		</div>
+    <div class="footer">
+      <div class="footer__item">
+        <a href="https://github.com/Firfi/nxblog" target="_blank" rel="noopener noreferrer">
+          <img src="/github-mark.png" alt="Github" />
+        </a>
+      </div>
+    </div>
 	</main>
 </Layout>
 
@@ -59,4 +66,16 @@ import TownMenu from '../components/menu/town.tsx';
 		display: flex;
     justify-content: center;
 	}
+  .footer {
+    display: flex;
+    justify-content: center;
+    margin-top: 2rem;
+  }
+  .footer__item {
+    margin: 0 0.5rem;
+  }
+  .footer__item img {
+    width: 2rem;
+    height: 2rem;
+  }
 </style>

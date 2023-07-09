@@ -1,3 +1,14 @@
+# UrlTown
+
+- On-page wasm continuous async simulation 
+- Done in Bevy game engine
+- Integrated with the page itself in the form of interactive navigation menu
+- Rust and Typescript code is integrated inside a monorepo
+- An external editor used as a "CMS" (LDTK)
+- Tilemap based animation
+- Collisions
+- Pathfinding
+
 TODO build: no auto build; do manually the town (nx build town) , then site (nx build astroblog), then copy assets dir right into astroblog build root; it's baked
 
 TODO until this https://github.com/Cammisuli/monodon/pull/22 is resolved, I check out my fork and use it as dependency or as an alternative symlink it into packages: `ln -s ~/work/blog/monodon/packages/rust`
