@@ -2,10 +2,12 @@ use bevy::prelude::*;
 use bevy_ecs_ldtk::prelude::*;
 use bevy_ecs_ldtk::utils::translation_to_ldtk_pixel_coords;
 use crate::building_entrance_ref::{BuildingEntranceRef, UnresolvedBuildingEntranceRef};
-use crate::cursor::CursorPos;
+use crate::cursor::{CursorPos, world_from_viewport};
 use crate::level_positional::LevelPositional;
 use crate::player::components::Player;
 use wasm_bindgen::prelude::*;
+use crate::alert;
+use crate::OutsideWindowSize;
 use crate::level_measurements::LevelMeasurements;
 
 #[cfg(target_arch = "wasm32")]
@@ -45,17 +47,26 @@ pub struct BuildingAreaBundle {
 pub fn building_area_touches_system(
   touches: Res<Touches>,
   mut event_writer: EventWriter<BuildingAreaTriggered>,
-  transforms_query: Query<(&LevelPositional, &BuildingEntranceRef)>
+  transforms_query: Query<(&LevelPositional, &BuildingEntranceRef)>,
+  camera_q: Query<(&GlobalTransform, &Camera)>,
+  level_measurements: Res<LevelMeasurements>,
+  outside_window_size: Res<OutsideWindowSize>
 ) {
-  for finger in touches.iter() {
-    for entrance in transforms_query.iter().filter(|e| {
-      let position = finger.position();
-      inside_level_positional(&e.0, &position.as_ivec2())
-    }).map(|e| e.1) {
-      event_writer.send(BuildingAreaTriggered {
-        entrance: entrance.0
-      });
-    }
+  for finger in touches.iter_just_pressed() {
+    let position_ = finger.position() - outside_window_size.0;
+    // let (global_transform, camera) = camera_q.single();
+    // let position = world_from_viewport(&position_, global_transform, camera, &level_measurements);
+    //if let Some(pos) = position {
+    let pos = position_;
+      for entrance in transforms_query.iter().filter(|e| {
+        inside_level_positional(&e.0, &pos.as_ivec2())
+      }).map(|e| e.1) {
+        event_writer.send(BuildingAreaTriggered {
+          entrance: entrance.0
+        });
+      }
+    //}
+
   }
 
 }

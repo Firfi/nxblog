@@ -15,6 +15,7 @@ bevy_ecs_ldtk = { git = "https://github.com/Trouv/bevy_ecs_ldtk.git", rev = "d99
 itertools = "0.11.0"
 pathfinding = "4.3.0"
 bevy_ecs_tilemap = { version = "0.10", features = ["atlas"] }
+once_cell = "1.18.0"
 
 [dependencies.bevy]
 version = "0.10.1"
@@ -36,8 +37,9 @@ crate-type = ["cdylib", "rlib"]
 path = "src/main.rs"
 
 [[bin]]
-name = "devbin"
+name = "town"
 path = "src/main.rs"
+
 
 [feature]
 default = [

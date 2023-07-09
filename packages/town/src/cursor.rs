@@ -13,16 +13,32 @@ impl Default for CursorPos {
   }
 }
 
+pub fn world_from_viewport(
+  pos: &Vec2,
+  camera_transform: &GlobalTransform,
+  camera: &Camera,
+  level_measurements: &LevelMeasurements
+) -> Option<IVec2> {
+  camera.viewport_to_world_2d(camera_transform, pos.clone()).map(|pos| {
+    translation_to_ldtk_pixel_coords(pos, level_measurements.px_hei as i32)
+  })
+}
+
 pub fn update_cursor_pos(
-  camera_q: Query<(&GlobalTransform, &Camera)>,
   mut cursor_moved_events: EventReader<CursorMoved>,
   mut cursor_pos: ResMut<CursorPos>,
+  camera_q: Query<(&GlobalTransform, &Camera)>,
   level_measurements: Res<LevelMeasurements>
 ) {
   for cursor_moved in cursor_moved_events.iter() {
     for (cam_t, cam) in camera_q.iter() {
-      if let Some(pos) = cam.viewport_to_world_2d(cam_t, cursor_moved.position) {
-        **cursor_pos = translation_to_ldtk_pixel_coords(pos, level_measurements.px_hei as i32);
+      if let Some(pos) = world_from_viewport(
+        &cursor_moved.position,
+        cam_t,
+        cam,
+        &level_measurements
+      ) {
+        **cursor_pos = pos;
       }
     }
   }

@@ -21,7 +21,7 @@ pub struct StartingPointBundle {
 pub fn starting_point_system(
   mut level_events: EventReader<LevelEvent>,
   starting_point_query: Query<&GridCoords, With<StartingPoint>>,
-  mut event_writer: EventWriter<StartingPointInitialized>,) {
+  mut event_writer: EventWriter<StartingPointInitialized>) {
   for level_event in level_events.iter().filter(|e| matches!(e, LevelEvent::Transformed(_)) ) {
     event_writer.send(StartingPointInitialized {
       grid_coords: starting_point_query.get_single().expect("Only one starting point expected").clone()

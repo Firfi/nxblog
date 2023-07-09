@@ -10,7 +10,7 @@ use bevy_ecs_ldtk::GridCoords;
 use crate::collisions::resources::LevelCollisionsSet;
 use crate::level_measurements::LevelMeasurements;
 use crate::pathfinding::{get_direction, MoveCompulsion, PathCompulsion};
-use crate::{collisions, player};
+use crate::{collisions, OutsideWindowFocus, player};
 use crate::building_area::InsideEntrance;
 use crate::player::{AnimationStateBundle, utils};
 use crate::player::components::{LookDirection, MovingState, Player, TilemapMetadata};
@@ -151,8 +151,12 @@ pub fn player_movement_system(
   mut query: Query<(&mut Transform, &mut GridCoords, Option<&MoveCompulsion>, &mut LookDirection, &mut MovingState, Entity), With<Player>>,
   time: Res<Time>,
   level_measurements: Res<LevelMeasurements>,
-  mut commands: Commands
+  mut commands: Commands,
+  focus: Res<OutsideWindowFocus>
 ) {
+  if !focus.0 {
+    return;
+  }
   for (mut transform, mut grid_coords, move_compulsion, mut look_direction, mut moving_state, entity) in query.iter_mut() {
     let translation = transform.translation.truncate();
     let mut direction = Vec3::ZERO;
