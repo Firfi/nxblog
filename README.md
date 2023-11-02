@@ -50,3 +50,5 @@ TODO until this https://github.com/Cammisuli/monodon/pull/22 is resolved, I chec
 TODO topLevelAwait() plugin just crashes build without no useful error indication
 
 TODO https://github.com/bevyengine/bevy/issues/3800 - size optimisations
+
+TODO CDN for assets; wasm loading takes forever (from Thailand to my Germany server)
