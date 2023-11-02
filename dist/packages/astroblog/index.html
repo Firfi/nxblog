@@ -2,6 +2,9 @@
 <script>
   // solves Safari's "back" button cache issue
   if (performance.navigation.type === 2) location.reload();
+  // attempt to disable bfcache
+  window.addEventListener('unload', function(){});
+  window.addEventListener('beforeunload', function(){});
 </script>
 
 <html lang="en">
