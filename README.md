@@ -37,7 +37,7 @@ build and run web server from dist/packages/astroblog i.e.
 
 ## Deploy
 
-
+`git push dokku master`
 
 ## TODOS
 
