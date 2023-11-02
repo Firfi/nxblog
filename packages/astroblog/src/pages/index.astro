@@ -3,6 +3,11 @@ import Layout from '../layouts/Layout.astro';
 import TownMenu from '../components/menu/town.tsx';
 ---
 
+<script is:inline>
+  // solves Safari's "back" button cache issue
+  if (performance.navigation.type === 2) location.reload();
+</script>
+
 <Layout title="Welcome">
 	<main>
 		<h1>Welcome. Enjoy.</h1>

@@ -2276,7 +2276,6 @@ dependencies = [
  "console_error_panic_hook",
  "itertools",
  "js-sys",
- "once_cell",
  "pathfinding",
  "wasm-bindgen",
  "wasm-bindgen-test",
