@@ -1,5 +1,7 @@
 # UrlTown
 
+https://urltown.apps.loskutoff.com/
+
 - On-page wasm continuous async simulation 
 - Done in Bevy game engine
 - Integrated with the page itself in the form of interactive navigation menu
