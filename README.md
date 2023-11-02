@@ -33,6 +33,10 @@ build and run web server from dist/packages/astroblog i.e.
 
 `cd dist/packages/astroblog && python3 -m http.server`
 
+## Deploy
+
+
+
 ## TODOS
 
 TODO doesn't work well with the "back" button of iOS safari - probably don't get the "unfocus" event
