@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <script>
-  console.log('performance.navigation.typeperformance.navigation.type', performance.navigation.type)
+  // solves Safari's "back" button cache issue
   if (performance.navigation.type === 2) location.reload();
 </script>
 
